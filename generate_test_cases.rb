@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # Generates a test input and output file
 
+require 'fileutils'
 require 'shellwords'
 
 class TestGen
@@ -15,8 +16,10 @@ class TestGen
   def generate(&block)
     case @mode
     when 'sql'
+      FileUtils.mkdir_p('sql')
       @file = File.open('sql/postgres_protobuf.sql', "wb")
     when 'expected-output'
+      FileUtils.mkdir_p('expected')
       @file = File.open('expected/postgres_protobuf.out', "wb")
     else
       raise "invalid mode: #{@mode}"

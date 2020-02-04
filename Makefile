@@ -31,6 +31,8 @@ include $(PGXS)
 all: sql/postgres_protobuf.sql expected/postgres_protobuf.out $(DESC_SET_FILES)
 clean: pb_clean
 
+protoc: $(PROTOC)
+
 # Hack to get protobuf headers before building any of our stuff
 $(OBJS) $(BC_FILES): $(PROTOC)
 
@@ -62,4 +64,4 @@ COMPILE.cxx.bc = $(CLANG) -xc++ -Wno-ignored-attributes $(BITCODE_CPPFLAGS) $(CP
 	$(COMPILE.cxx.bc) -o $@ $<
 	$(LLVM_BINPATH)/opt -module-summary -f $@ -o $@
 
-.PHONY: erb_clean pb_clean
+.PHONY: all clean protoc erb_clean pb_clean
