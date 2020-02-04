@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package pgpb.test.other;
+
+message MessageInOtherDescSet {
+  int32 int32_field = 1;
+}

@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package pgpb.test;
+
+message ExampleMessage {
+  Scalars scalars = 1;
+
+  repeated int32 repeated_int32 = 2;
+  repeated string repeated_string = 3;
+
+  InnerMessage inner = 4;
+  repeated InnerMessage repeated_inner = 5;
+
+  AnEnum an_enum = 6;
+
+  map<string, string> map_str2str = 7;
+  map<int32, string> map_int2str = 8;
+  map<int32, int32> map_int2int = 9;
+  map<string, InnerMessage> map_str2inner = 10;
+
+  message InnerMessage {
+    string inner_str = 1;
+    repeated string inner_repeated = 2;
+  }
+}
+
+message Scalars {
+  double double_field = 1;
+  float float_field = 2;
+  int32 int32_field = 3;
+  int64 int64_field = 4;
+  uint32 uint32_field = 5;
+  uint64 uint64_field = 6;
+  sint32 sint32_field = 7;
+  sint64 sint64_field = 8;
+  fixed32 fixed32_field = 9;
+  fixed64 fixed64_field = 10;
+  sfixed32 sfixed32_field = 11;
+  sfixed64 sfixed64_field = 12;
+  bool bool_field = 13;
+  string string_field = 14;
+  bytes bytes_field = 15;
+}
+
+enum AnEnum {
+  EnumValue0 = 0;
+  EnumValue1 = 1;
+  EnumValue2 = 2;
+}
