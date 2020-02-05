@@ -32,6 +32,8 @@ which means that field renames will break backwards- and forwards-compatibility.
 
 ## Installation
 
+Requires Postgres 11 or newer.
+
 Prerequisites for installing from source:
 
 - Postgres server headers (if you use the Postgres APT repo, install `postgresql-server-dev-$VERSION`)

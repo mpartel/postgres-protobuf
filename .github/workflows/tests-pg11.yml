@@ -1,4 +1,4 @@
-name: Tests
+name: Tests on PG11
 
 on: [push]
 
@@ -11,4 +11,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build and run tests in Docker
-      run: env USE_DOCKER=1 ./build-and-test.sh
+      run: env USE_DOCKER=1 POSTGRES_VERSION=11 ./build-and-test.sh

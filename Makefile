@@ -1,6 +1,6 @@
 
-PROTOBUF_VERSION=3.11.2
-PROTOBUF_ROOT=third_party/protobuf-$(PROTOBUF_VERSION)
+
+PROTOBUF_ROOT=third_party/protobuf
 PROTOC=$(PROTOBUF_ROOT)/src/protoc
 
 MODULE_big = postgres_protobuf
@@ -33,7 +33,7 @@ clean: pb_clean
 
 protoc: $(PROTOC)
 
-# Hack to get protobuf headers before building any of our stuff
+# Hack to get protobuf headers and libraries before building any of our stuff
 $(OBJS) $(BC_FILES): $(PROTOC)
 
 # Instead of proper dependency tracking, it's easier to make all compilation units depend on all headers.
@@ -41,10 +41,7 @@ $(OBJS) $(BC_FILES): $(PROTOC)
 $(OBJS) $(BC_FILES): $(wildcard *.hpp)
 
 $(PROTOC):
-	rm -Rf third_party/protobuf-*
-	mkdir -p third_party/
-	cd third_party && curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOBUF_VERSION)/protobuf-cpp-$(PROTOBUF_VERSION).tar.gz" | tar xzf -
-	cd third_party/protobuf-$(PROTOBUF_VERSION) && ./configure --with-pic --enable-static && make -j16
+	./build-protobuf-library.sh
 
 sql/postgres_protobuf.sql: generate_test_cases.rb $(DESC_SET_FILES)
 	env PROTOC=$(PROTOC) ./generate_test_cases.rb sql
