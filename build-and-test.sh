@@ -5,7 +5,7 @@ cd "$(dirname "${0}")"
 
 if [ -n "${USE_DOCKER:-}" ]; then
     docker build -f Dockerfile.test -t postgres-protobuf-test .
-    docker run postgres-protobuf-test env __IN_DOCKER=1 /app/debug-build-and-test.sh
+    docker run postgres-protobuf-test env __IN_DOCKER=1 /app/build-and-test.sh
     exit $?
 fi
 
