@@ -1,5 +1,6 @@
-
 # Protocol Buffer extension for PostgreSQL
+
+![Tests](https://github.com/mpartel/postgres-protobuf/workflows/Tests/badge.svg)
 
 Features:
 
