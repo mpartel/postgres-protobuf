@@ -1,4 +1,8 @@
 
+EXT_VERSION_MAJOR = 0
+EXT_VERSION_MINOR = 1
+EXT_VERSION_PATCHLEVEL = 0
+EXT_VERSION = $(EXT_VERSION_MAJOR).$(EXT_VERSION_MINOR).$(EXT_VERSION_PATCHLEVEL)
 
 PROTOBUF_ROOT=third_party/protobuf
 PROTOC=$(PROTOBUF_ROOT)/src/protoc
@@ -12,7 +16,7 @@ OBJS=$(patsubst %.cpp, %.o, $(wildcard *.cpp))
 BC_FILES=$(patsubst %.o, %.bc, $(OBJS))
 DESC_SET_FILES=$(patsubst %.proto, %.pb, $(wildcard test_protos/*.proto))
 
-PG_CPPFLAGS=-I$(PROTOBUF_ROOT)/src -Wno-deprecated -std=c++17 -Wno-register
+PG_CPPFLAGS=-I$(PROTOBUF_ROOT)/src -Wno-deprecated -std=c++17 -Wno-register -DEXT_VERSION_MAJOR=$(EXT_VERSION_MAJOR) -DEXT_VERSION_MINOR=$(EXT_VERSION_MINOR) -DEXT_VERSION_PATCHLEVEL=$(EXT_VERSION_PATCHLEVEL)
 PG_CXXFLAGS=-fPIC
 PG_LDFLAGS=-Wl,--whole-archive $(PROTOBUF_ROOT)/src/.libs/libprotobuf.a -Wl,--no-whole-archive
 
@@ -29,7 +33,7 @@ include $(PGXS)
 
 # Add targets to `all` and `clean`
 all: sql/postgres_protobuf.sql expected/postgres_protobuf.out $(DESC_SET_FILES)
-clean: pb_clean
+clean: postgres_protobuf_clean
 
 protoc: $(PROTOC)
 
@@ -52,7 +56,8 @@ expected/postgres_protobuf.out: generate_test_cases.rb $(DESC_SET_FILES)
 %.pb: %.proto $(PROTOC) 
 	$(PROTOC) -I test_protos --descriptor_set_out=$@ $<
 
-pb_clean:
+postgres_protobuf_clean:
+	rm -Rf dist
 	rm -f $(DESC_SET_FILES)
 
 # Work around weird error mentioned here: https://github.com/rdkit/rdkit/issues/2192
@@ -61,4 +66,16 @@ COMPILE.cxx.bc = $(CLANG) -xc++ -Wno-ignored-attributes $(BITCODE_CPPFLAGS) $(CP
 	$(COMPILE.cxx.bc) -o $@ $<
 	$(LLVM_BINPATH)/opt -module-summary -f $@ -o $@
 
-.PHONY: all clean protoc erb_clean pb_clean
+DIST_DIR = dist/postgres-protobuf-$(EXT_VERSION)
+dist: all
+	rm -Rf dist
+	mkdir -p $(DIST_DIR)/lib $(DIST_DIR)/extension $(DIST_DIR)/lib/bitcode
+	cp postgres_protobuf.so $(DIST_DIR)/lib/
+	cp postgres_protobuf.control $(DIST_DIR)/extension/
+	cp postgres_protobuf--*.sql $(DIST_DIR)/extension/
+	cp README.md $(DIST_DIR)/extension/
+	cp *.bc $(DIST_DIR)/lib/bitcode/
+	cd $(DIST_DIR)/lib/bitcode && $(LLVM_BINPATH)/llvm-lto -thinlto -thinlto-action=thinlink -o postgres_protobuf.index.bc *.bc
+	tar -C dist -cvzf dist/postgres-protobuf-$(EXT_VERSION).tar.gz postgres-protobuf-$(EXT_VERSION)
+
+.PHONY: all clean protoc postgres_protobuf_clean dist

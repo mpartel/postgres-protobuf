@@ -2,6 +2,7 @@
 *.o
 *.so
 *.bc
+/dist
 /test_protos/*_descriptor_set.pb
 /third_party
 

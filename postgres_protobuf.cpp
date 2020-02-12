@@ -19,9 +19,9 @@ extern "C" {
 
 namespace postgres_protobuf {
 namespace version {
-const int64_t majorVersion = 0;
-const int64_t minorVersion = 1;
-const int64_t patchlevel = 0;
+const int64_t majorVersion = EXT_VERSION_MAJOR;
+const int64_t minorVersion = EXT_VERSION_MINOR;
+const int64_t patchlevel = EXT_VERSION_PATCHLEVEL;
 constexpr int64_t numericVersion =
     majorVersion * 10000 + minorVersion * 100 + patchlevel;
 }  // namespace version
