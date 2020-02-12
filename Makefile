@@ -28,6 +28,8 @@ ifndef PG_CONFIG
 	PG_CONFIG := pg_config
 endif
 
+PLATFORM := "$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)"
+
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
@@ -66,15 +68,16 @@ COMPILE.cxx.bc = $(CLANG) -xc++ -Wno-ignored-attributes $(BITCODE_CPPFLAGS) $(CP
 	$(COMPILE.cxx.bc) -o $@ $<
 	$(LLVM_BINPATH)/opt -module-summary -f $@ -o $@
 
-DIST_TAR_BASENAME = postgres-protobuf-v$(EXT_VERSION)-for-pg$(MAJORVERSION)
+DIST_TAR_BASENAME = postgres-protobuf-v$(EXT_VERSION)-$(PLATFORM)-for-pg$(MAJORVERSION)
 DIST_DIR = dist/$(DIST_TAR_BASENAME)
 dist: all
 	rm -Rf dist
-	mkdir -p $(DIST_DIR)/lib $(DIST_DIR)/extension $(DIST_DIR)/lib/bitcode
+	mkdir -p $(DIST_DIR)/lib $(DIST_DIR)/lib/bitcode $(DIST_DIR)/extension $(DIST_DIR)/doc
 	cp postgres_protobuf.so $(DIST_DIR)/lib/
 	cp postgres_protobuf.control $(DIST_DIR)/extension/
 	cp postgres_protobuf--*.sql $(DIST_DIR)/extension/
-	cp README.md LICENSE.txt $(DIST_DIR)/extension/
+	cp README.md $(DIST_DIR)/doc/postgres-protobuf-README.md
+	cp LICENSE.txt $(DIST_DIR)/doc/postgres-protobuf-LICENSE.txt
 	cp *.bc $(DIST_DIR)/lib/bitcode/
 	cd $(DIST_DIR)/lib/bitcode && $(LLVM_BINPATH)/llvm-lto -thinlto -thinlto-action=thinlink -o postgres_protobuf.index.bc *.bc
 	tar -C dist -cvzf dist/$(DIST_TAR_BASENAME).tar.gz $(DIST_TAR_BASENAME)

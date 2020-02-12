@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+      - name: Test on PG11
+        run: env USE_DOCKER=1 POSTGRES_VERSION=11 ./build-and-test.sh
+      - name: Test on PG12
+        run: env USE_DOCKER=1 POSTGRES_VERSION=12 ./build-and-test.sh
+      - name: Build for PG11
+        run: env POSTGRES_VERSION=11 ./docker-build-dist.sh
+      - name: Build for PG12
+        run: env POSTGRES_VERSION=12 ./docker-build-dist.sh
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+      - name: Upload PG11 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg11.tar.gz
+          asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg11.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload PG12 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg12.tar.gz
+          asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg12.tar.gz
+          asset_content_type: application/gzip
