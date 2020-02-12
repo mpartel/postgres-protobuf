@@ -28,4 +28,5 @@ RUN apt-get update \
  && sudo -u postgres createuser -s root
 
 COPY /test_protos /app/test_protos
-COPY Makefile *.hpp *.cpp *.rb *.sh *.sql *.control *.md /app/
+COPY Makefile *.hpp *.cpp *.rb *.sh *.sql *.control *.md *.txt /app/
+RUN cd /app && make clean && make -j16 dist

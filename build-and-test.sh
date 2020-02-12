@@ -7,8 +7,8 @@ POSTGRES_VERSION=${POSTGRES_VERSION:-11}
 
 if [[ -n "${USE_DOCKER:-}" ]]; then
     unset USE_DOCKER
-    docker build -f Dockerfile.test --build-arg=POSTGRES_VERSION="${POSTGRES_VERSION}" -t postgres-protobuf-test:"${POSTGRES_VERSION}" .
-    docker run postgres-protobuf-test:"${POSTGRES_VERSION}" env __IN_DOCKER=1 /app/build-and-test.sh
+    docker build --build-arg=POSTGRES_VERSION="${POSTGRES_VERSION}" -t postgres-protobuf-build:"${POSTGRES_VERSION}" .
+    docker run postgres-protobuf-build:"${POSTGRES_VERSION}" env NO_CLEAN=1 __IN_DOCKER=1 /app/build-and-test.sh
     exit $?
 fi
 
