@@ -57,7 +57,7 @@ CREATE EXTENSION postgres_protobuf;
 
 First, you need to tell the extension about your protobuf schema.
 Run the protobuf compiler `protoc` on your `.proto` files with
-`--descriptor_set_out=path/to/schema.pb`,
+`--descriptor_set_out=path/to/schema.pb` and `--include_imports`,
 then insert that file to the database with
 
 ```sql
