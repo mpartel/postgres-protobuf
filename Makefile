@@ -1,4 +1,6 @@
 
+# To release a new version, change these numbers and
+# run ./build-and-test.sh to update the test cases
 EXT_VERSION_MAJOR = 0
 EXT_VERSION_MINOR = 1
 EXT_VERSION_PATCHLEVEL = 1

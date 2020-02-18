@@ -98,9 +98,21 @@ EOS
     test_sql("--", nil)
     test_sql('\\pset format unaligned', nil)
     test_sql('CREATE EXTENSION postgres_protobuf;', nil)
-    test_sql('SELECT protobuf_extension_version() AS result;', ['100'])
+    generate_version_check
     test_sql("INSERT INTO protobuf_file_descriptor_sets (name, file_descriptor_set) VALUES ('default', #{descriptor_set_data_hex("main_descriptor_set")});", nil)
     test_sql("INSERT INTO protobuf_file_descriptor_sets (name, file_descriptor_set) VALUES ('other', #{descriptor_set_data_hex("other_descriptor_set")});", nil)
+  end
+
+  def generate_version_check
+    makefile = File.read('Makefile')
+    makefile =~ /EXT_VERSION_MAJOR\s*=\s*(\d+)/ or raise "EXT_VERSION_MAJOR not found in makefile"
+    major = $1.to_i
+    makefile =~ /EXT_VERSION_MINOR\s*=\s*(\d+)/ or raise "EXT_VERSION_MINOR not found in makefile"
+    minor = $1.to_i
+    makefile =~ /EXT_VERSION_PATCHLEVEL\s*=\s*(\d+)/ or raise "EXT_VERSION_PATCHLEVEL not found in makefile"
+    patchlevel = $1.to_i
+    version = major * 10000 + minor * 100 + patchlevel
+    test_sql('SELECT protobuf_extension_version() AS result;', [version.to_s])
   end
 
   def format_expected_results(expected_results)
