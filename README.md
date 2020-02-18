@@ -93,7 +93,7 @@ where
     - *index selectors* like `field[123]`, which select the Nth element of a repeated field.
     - *map value selectors* like `field[123]` or `field[abc]`, which select the given map key (both numbers and strings work).
     - *universal selectors* written `field[*]`, which select all elements of a repeated field or map.
-    - *universal map key selectors* written `field:keys`, which select all keys of a map.
+    - *universal map key selectors* written `field|keys`, which select all keys of a map.
 
 ## Caveats
 

@@ -1148,7 +1148,7 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     }
 
     if (keys_selector && !fd->is_map()) {
-      throw BadQuery(":keys can only be used for maps");
+      throw BadQuery("|keys can only be used for maps");
     }
 
     if (fd->is_map()) {
