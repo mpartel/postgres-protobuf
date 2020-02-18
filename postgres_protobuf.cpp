@@ -240,7 +240,7 @@ Datum protobuf_to_json_text(PG_FUNCTION_ARGS) {
     bytea* result =
         static_cast<bytea*>(palloc0_or_throw_bad_alloc(result_size));
     SET_VARSIZE(result, result_size);
-    memcpy(VARDATA(result), json_str.data(), result_size);
+    memcpy(VARDATA(result), json_str.data(), json_str.size());
     PG_RETURN_TEXT_P(result);
   } catch (const std::bad_alloc& e) {
     ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("out of memory")));
@@ -275,7 +275,7 @@ Datum protobuf_from_json_text(PG_FUNCTION_ARGS) {
     bytea* result =
         static_cast<bytea*>(palloc0_or_throw_bad_alloc(result_size));
     SET_VARSIZE(result, result_size);
-    memcpy(VARDATA(result), proto_str.data(), result_size);
+    memcpy(VARDATA(result), proto_str.data(), proto_str.size());
     PG_RETURN_BYTEA_P(result);
   } catch (const std::bad_alloc& e) {
     ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("out of memory")));
