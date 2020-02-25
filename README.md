@@ -19,19 +19,23 @@ SELECT protobuf_query_multi('MyProto:some_repeated_field[*].some_map[*].some_fie
 
 ## Why put protobufs in a database?
 
-Protobufs in a database is in many ways similar to JSON in a database.
-The main advantage of protobufs is a compact and efficient representation.
+Protobufs in a database is in many ways similar to JSON in a database:
+- less code needed to convert data structures into database rows and back
+- less alter tables required as data fields are added and removed
+
+The main advantage of protobufs over JSON is a compact and efficient representation.
 The main advantage of JSON is human-readability without extra steps.
 
 ### What about storing protobufs as JSON?
 
 Protobufs have a well-defined JSON representation supported by most implementations.
-Using that for storage is a valid strategy if efficiency is not a major concern.
+Using that for storage (as [`json` or `jsonb`](https://www.postgresql.org/docs/current/datatype-json.html))
+is a valid strategy if efficiency is not a major concern.
 
 Note that JSON protobufs store fields by name instead of by number,
 which means that field renames will break backwards- and forwards-compatibility.
 
-## Installation
+## Installation from source
 
 Requires Postgres 11 or newer.
 
@@ -53,6 +57,19 @@ Then in Postgres:
 CREATE EXTENSION postgres_protobuf;
 ```
 
+## Installation from binary release
+
+Prebuilt binaries are [here](https://github.com/mpartel/postgres-protobuf/releases).
+
+Currently they are built with and tested on Ubuntu 18.04 only.
+You can build your own binary package from source with `make dist`.
+
+On Ubuntu, install the contents of the binary package like this:
+- copy the contents of `lib/` to `/usr/lib/postgresql/11/lib/`
+- copy the contents of `extension/` to `/usr/share/postgresql/11/extension/`
+
+Other distros may have those Postgres directories elsewhere.
+
 ## Usage
 
 First, you need to tell the extension about your protobuf schema.
@@ -66,6 +83,7 @@ VALUES ('default', contents_of_file)
 ```
 
 where `contents_of_file` is a Postgres [byte array](https://www.postgresql.org/docs/current/datatype-binary.html).
+Commit the transaction if you're in one.
 
 Now you can query protobufs described by your schema like this:
 
@@ -105,8 +123,8 @@ before relying on it too heavily in a design.
 
 This extension is fairly new and written in C++, so some caution is warranted.
 It's may be unwise to give it untrusted queries or protobuf data that you haven't
-parsed and reserialized first. Conversion to/from JSON should be safe, but see
-the note about memory management below.
+parsed and reserialized first. Conversion to/from JSON should be safer since it
+thinly wraps the well-tested protobuf library, but see the note about memory management below.
 
 ### Performance
 
@@ -130,12 +148,14 @@ This memory might not be properly accounted for by Postgres's
 memory management and monitoring systems.
 
 While care has been taken to avoid memory leaks and to tolerate memory exhaustion at any point,
-this has not been rigorously tested.
+this has not been rigorously tested, and I am unsure whether the protobuf library always cleans up
+correctly after a `bad_alloc` exception.
 
 In the current version, protobuf [map](https://developers.google.com/protocol-buffers/docs/proto3#maps)
-values are buffered before being scanned. This means that huge protobufs whose bulk is under a
+values are buffered before being scanned by queries. This means that huge protobufs whose bulk is under a
 highly nested map may take a lot of memory. Note that an attacker can easily construct such a
-protobuf if the schema has recursion involving a map.
+protobuf if the schema has recursion involving a map. This caveat applies only to queries,
+not to JSON conversion.
 
 Other than the above case, memory use is linear, or roughly
 `O(|descriptor sets| + |largest protobuf queried| + |result set|)`.
@@ -144,24 +164,24 @@ Other than the above case, memory use is linear, or roughly
 
 Protobuf versions 2 and 3 should both work,
 but [groups](https://developers.google.com/protocol-buffers/docs/proto#groups)
-(a deprecated protobuf feature)
-are currently not supported and will cause the query to fail if encountered.
+(which have been deprecated for a long time)
+are currently not supported and will cause queries to fail if encountered.
 
 Note that proto3 does not store default values for fields.
 The current implementation returns no result for missing values.
 This means that e.g. a numeric field whose value is 0 will not show up in results.
-A future version may change this default behaviour.
+A future version may change this default.
 
 This extension has so far only been tested on AMD64.
 
 ### Advanced operations
 
-The current version has no support for modifying the contents of protobufs,
+The current version does not provide functions for modifying the contents of protobufs,
 and there are no concrete plans to add such functonality.
 There are also no concrete plans to significantly extend the query language.
 
-If you do need these features occasionally, consider converting to JSON,
-for which Postgres has [a wide range of operations](https://www.postgresql.org/docs/current/functions-json.html).
+If you do need these features occasionally, consider converting to JSON and back,
+since Postgres has [a wide range of JSON operations](https://www.postgresql.org/docs/current/functions-json.html).
 
 ## Comparison with pg_protobuf
 
