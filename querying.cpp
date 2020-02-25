@@ -961,8 +961,6 @@ std::vector<std::string> QueryImpl::Run(const std::uint8_t* proto_data,
 void QueryImpl::CompileQuery(const descriptor_db::DescDb& desc_db,
                              const std::string& query,
                              std::optional<uint64_t> limit) {
-  // TODO: improve error messages
-
   visitors_.clear();
   emitter_ = nullptr;
   type_resolver_ = nullptr;
@@ -1059,7 +1057,7 @@ const pb::Descriptor* QueryImpl::GetDesc(const descriptor_db::DescSet& desc_set,
                                          std::string::size_type* query_start) {
   std::string::size_type i = query.find(':', *query_start);
   if (i == std::string::npos) {
-    throw BadQuery("no protobuf name given");
+    throw BadQuery("invalid protobuf query - expected: [<descriptor_set>:]<message_name>:<path>");
   }
   std::string desc_name(query.substr(*query_start, i - *query_start));
   *query_start = i + 1;
@@ -1067,7 +1065,7 @@ const pb::Descriptor* QueryImpl::GetDesc(const descriptor_db::DescSet& desc_set,
   const pb::Descriptor* desc = desc_set.pool->FindMessageTypeByName(desc_name);
   if (desc == nullptr) {
     throw BadQuery(
-        "unknown protobuf (did you remember to give the full package name?)");
+        "unknown protobuf (did you remember to include the package name?)");
   }
   return desc;
 }
@@ -1077,11 +1075,11 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
                                  const pb::EnumDescriptor** ed,
                                  const std::string& part) {
   if (*desc == nullptr) {
-    throw BadQuery("query does not refer to a known field");
+    throw BadQuery(std::string("query does not refer to a known field: ") + part);
   }
 
   if (part.empty()) {
-    throw BadQuery("empty query part");
+    throw BadQuery("unexpected empty query part");
   }
 
   std::string::size_type bracket = part.find('[');
@@ -1096,7 +1094,7 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     char* end;
     long l = std::strtol(part.c_str(), &end, 10);
     if (end != &part[field_selector_end]) {
-      throw BadQuery("malformed field number in query");
+      throw BadQuery(std::string("invalid field number in query: ") + part);
     }
     fd = (*desc)->FindFieldByNumber(static_cast<int>(l));
   } else {
@@ -1148,7 +1146,7 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     }
 
     if (keys_selector && !fd->is_map()) {
-      throw BadQuery("|keys can only be used for maps");
+      throw BadQuery("'|keys' can only be used on maps");
     }
 
     if (fd->is_map()) {
@@ -1211,10 +1209,10 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
         size_t end;
         long n = std::stol(rep_selector.c_str(), &end, 10);
         if (end != rep_selector.size()) {
-          throw BadQuery("expected numeric indexer");
+          throw BadQuery(std::string("expected numeric indexer at: ") + rep_selector);
         }
         if (n < 0 || n > static_cast<long>(std::numeric_limits<int>::max())) {
-          throw BadQuery("index out of bounds");
+          throw BadQuery(std::string("index out of bounds: " + rep_selector));
         }
 
         field_selector->SetWantedIndex(static_cast<int>(n));
