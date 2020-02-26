@@ -96,11 +96,26 @@ enum class LengthDelimitedFieldTreatment {
   AsPacked64
 };
 
+struct DescPtrs {
+  pb::FieldDescriptor::Type ty;  // Type of thing being pointed at
+  const pb::Descriptor* desc;    // Message descriptor when ty == TYPE_MESSAGE
+  const pb::EnumDescriptor* enum_desc;  // Enum descriptor when ty == TYPE_ENUM
+  bool is_repeated;
+  bool is_map;
+};
+
+// Thrown as an exception for convenience.
+// TODO: this goes against some best practices. Is this worth changing?
+class LimitReached {};
+
 class ProtobufTraverser;
 
 class ProtobufVisitor {
  public:
-  virtual void SetNext(ProtobufVisitor* next) {}
+  ProtobufVisitor() : next_(&ProtobufVisitor::noOp) {}
+  virtual ~ProtobufVisitor() {}
+
+  void SetNext(ProtobufVisitor* next) { next_ = next; }
 
   virtual void Pushed(ProtobufTraverser* traverser) {}
 
@@ -129,6 +144,8 @@ class ProtobufVisitor {
   static ProtobufVisitor noOp;
 
  protected:
+  ProtobufVisitor* next_;
+
   LengthDelimitedFieldTreatment CompositeFieldTreatmentForType(
       pb::FieldDescriptor::Type ty) {
     switch (ty) {
@@ -386,13 +403,198 @@ class ProtobufTraverser {
   }
 };
 
+class Emitter;
+class PrimitiveEmitter;
+class EnumEmitter;
+class MessageEmitter;
+
+class Emitter : public ProtobufVisitor {
+ public:
+  static std::unique_ptr<Emitter> Create(const DescPtrs& desc_ptrs,
+                                         pb::util::TypeResolver* type_resolver,
+                                         std::optional<uint64_t> limit);
+
+  std::vector<std::string> rows;
+
+ protected:
+  Emitter(pb::FieldDescriptor::Type ty, std::optional<uint64_t> limit)
+      : ty_(ty) {}
+
+  const pb::FieldDescriptor::Type ty_;
+  const std::string type_url_;
+  const std::optional<uint64_t> limit_;
+
+  template <typename T>
+  void Emit(const T& value) {
+    EmitStr(std::move(std::to_string(value)));
+  }
+
+  void EmitStr(std::string&& str) {
+    PGPROTO_DEBUG("EmitStr(%s)", str.c_str());
+    rows.push_back(str);
+    if (limit_ && rows.size() >= *limit_) {
+      PGPROTO_DEBUG("Result limit reached");
+      throw LimitReached();
+    }
+  }
+};
+
+class PrimitiveEmitter : public Emitter {
+ public:
+  PrimitiveEmitter(pb::FieldDescriptor::Type ty, std::optional<uint64_t> limit)
+      : Emitter(ty, limit) {
+    PGPROTO_DEBUG("Created primitive emitter %d %lx", static_cast<int>(ty_),
+                  intptr_t(this));
+  }
+
+  using T = pb::FieldDescriptor::Type;
+  using WFL = pb::internal::WireFormatLite;
+
+  std::pair<LengthDelimitedFieldTreatment, ProtobufVisitor*>
+  ReadLengthDelimitedField(const FieldInfo& field) override {
+    return std::make_pair(CompositeFieldTreatmentForType(ty_), this);
+  }
+
+  void ReadPrimitive(const FieldInfo& field) override {
+#ifndef PROTOBUF_LITTLE_ENDIAN
+    static_assert(false, "big-endian not yet supported");
+#endif
+    PGPROTO_DEBUG("Emit primitive %d (wt %d, ty %d)", field.number,
+                  field.wire_type, ty_);
+    switch (ty_) {
+      case T::TYPE_DOUBLE:
+        Emit(WFL::DecodeDouble(field.value.as_uint64));
+        break;
+      case T::TYPE_FLOAT:
+        Emit(WFL::DecodeFloat(field.value.as_uint32));
+        break;
+      case T::TYPE_INT64:
+      case T::TYPE_SFIXED64:
+        Emit(static_cast<int64_t>(field.value.as_uint64));
+        break;
+      case T::TYPE_UINT64:
+      case T::TYPE_FIXED64:
+        Emit(field.value.as_uint64);
+        break;
+      case T::TYPE_INT32:
+      case T::TYPE_SFIXED32:
+        Emit(static_cast<int32_t>(field.value.as_uint32));
+        break;
+      case T::TYPE_FIXED32:
+      case T::TYPE_UINT32:
+        Emit(field.value.as_uint32);
+        break;
+      case T::TYPE_BOOL:
+        EmitStr(std::string(field.value.as_uint64 != 0 ? "true" : "false"));
+        break;
+      case T::TYPE_SINT32:
+        Emit(WFL::ZigZagDecode32(field.value.as_uint32));
+        break;
+      case T::TYPE_SINT64:
+        Emit(WFL::ZigZagDecode64(field.value.as_uint64));
+        break;
+      default:
+        throw BadProto(std::string("unrecognized primitive field type: ") +
+                       std::to_string(ty_));
+    }
+  }
+
+  void ReadString(std::string&& s) override { EmitStr(std::move(s)); }
+
+  void ReadBytes(std::string&& s) override {
+    std::stringstream ss;
+    ss << "\\x";
+    ss << std::hex << std::setfill('0') << std::uppercase;
+    for (char c : s) {
+      ss << std::setw(2) << static_cast<unsigned int>(c);
+    }
+
+    EmitStr(ss.str());
+  }
+};
+
+class EnumEmitter : public Emitter {
+ public:
+  EnumEmitter(const pb::EnumDescriptor* ed, std::optional<uint64_t> limit)
+      : Emitter(pb::FieldDescriptor::Type::TYPE_ENUM, limit), ed_(ed) {
+    PGPROTO_DEBUG("Created enum emitter %s %lx", ed_->full_name().c_str(),
+                  intptr_t(this));
+  }
+
+  void ReadPrimitive(const FieldInfo& field) override {
+    uint64_t n = field.value.as_uint64;
+    const pb::EnumValueDescriptor* vd = ed_->FindValueByNumber(n);
+    if (vd != nullptr) {
+      EmitStr(std::string(vd->name()));
+    } else {
+      return Emit(n);
+    }
+  }
+
+ private:
+  const pb::EnumDescriptor* ed_;
+};
+
+class MessageEmitter : public Emitter {
+ public:
+  MessageEmitter(pb::util::TypeResolver* type_resolver, std::string&& type_url,
+                 std::optional<uint64_t> limit)
+      : Emitter(pb::FieldDescriptor::Type::TYPE_MESSAGE, limit),
+        type_resolver_(type_resolver),
+        type_url_(type_url) {
+    PGPROTO_DEBUG("Created message emitter %d %lx", static_cast<int>(ty_),
+                  intptr_t(this));
+  }
+
+  std::pair<LengthDelimitedFieldTreatment, ProtobufVisitor*>
+  ReadLengthDelimitedField(const FieldInfo& field) override {
+    return std::make_pair(LengthDelimitedFieldTreatment::Buffer, this);
+  }
+
+  void BufferedValue(std::string&& s) override {
+    std::string json;
+    if (type_url_.empty()) {
+      throw BadQuery("result type not known");  // Should not happen
+    }
+    PGPROTO_DEBUG("Converting %lu bytes to JSON: %s", s.size(),
+                  type_url_.c_str());
+    if (!pb::util::BinaryToJsonString(type_resolver_, type_url_, s, &json)
+             .ok()) {
+      throw BadProto("failed to convert submessage to JSON");
+    }
+
+    EmitStr(std::move(json));
+  }
+
+ private:
+  pb::util::TypeResolver* const type_resolver_;
+  const std::string type_url_;
+};
+
+std::unique_ptr<Emitter> Emitter::Create(const DescPtrs& desc_ptrs,
+                                         pb::util::TypeResolver* type_resolver,
+                                         std::optional<uint64_t> limit) {
+  if (desc_ptrs.ty == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
+    assert(desc_ptrs.desc != nullptr);
+    std::string type_url;
+    type_url += "type.googleapis.com/";
+    type_url += desc_ptrs.desc->full_name();
+    return std::unique_ptr<Emitter>(
+        new MessageEmitter(type_resolver, std::move(type_url), limit));
+  } else if (desc_ptrs.ty == pb::FieldDescriptor::Type::TYPE_ENUM) {
+    assert(desc_ptrs.enum_desc != nullptr);
+    return std::unique_ptr<Emitter>(
+        new EnumEmitter(desc_ptrs.enum_desc, limit));
+  } else {
+    return std::unique_ptr<Emitter>(new PrimitiveEmitter(desc_ptrs.ty, limit));
+  }
+}
+
 class DescendIntoSubmessage : public ProtobufVisitor {
  public:
   DescendIntoSubmessage() {
     PGPROTO_DEBUG("Created descend-into-submessage %lx", intptr_t(this));
   }
-
-  void SetNext(ProtobufVisitor* next) override { next_ = next; }
 
   std::pair<LengthDelimitedFieldTreatment, ProtobufVisitor*>
   ReadLengthDelimitedField(const FieldInfo& field) override {
@@ -400,9 +602,6 @@ class DescendIntoSubmessage : public ProtobufVisitor {
   }
 
   ProtobufVisitor* BeginMessage() override { return next_; }
-
- private:
-  ProtobufVisitor* next_;
 };
 
 class FieldSelector : public ProtobufVisitor {
@@ -413,7 +612,6 @@ class FieldSelector : public ProtobufVisitor {
         ty_(ty),
         is_packed_(is_packed),
         wanted_index_(-1),
-        next_(&ProtobufVisitor::noOp),
         state_(State::Scanning),
         current_index_(0) {
     PGPROTO_DEBUG("Created field selector %d %lx", wanted_field,
@@ -421,8 +619,6 @@ class FieldSelector : public ProtobufVisitor {
   }
 
   void SetWantedIndex(int wanted_index) { wanted_index_ = wanted_index; }
-
-  void SetNext(ProtobufVisitor* next) override { next_ = next; }
 
   void Pushed(ProtobufTraverser* traverser) override { traverser_ = traverser; }
 
@@ -473,7 +669,6 @@ class FieldSelector : public ProtobufVisitor {
   const pb::FieldDescriptor::Type ty_;
   const bool is_packed_;
   int wanted_index_;
-  ProtobufVisitor* next_;
 
   enum class State {
     Scanning,
@@ -497,13 +692,10 @@ class MapFilter : public ProtobufVisitor {
       : wanted_key_field_(wanted_key_field),
         wanted_key_contents_(wanted_key_contents),
         value_type_(value_type),
-        next_(&ProtobufVisitor::noOp),
         scope_(Scope::Outermost) {
     PGPROTO_DEBUG("Created map filter %d %s %lx", wanted_key_field.wire_type,
                   wanted_key_contents.c_str(), intptr_t(this));
   }
-
-  void SetNext(ProtobufVisitor* next) override { next_ = next; }
 
   ProtobufVisitor* BeginField(int number, int wire_type) override {
     if (wire_type == 2 && scope_ == Scope::Outermost) {
@@ -614,7 +806,6 @@ class MapFilter : public ProtobufVisitor {
   const FieldInfo wanted_key_field_;
   const std::string wanted_key_contents_;
   pb::FieldDescriptor::Type value_type_;
-  ProtobufVisitor* next_;
 
   enum class Scope {
     Outermost,
@@ -655,8 +846,6 @@ class AllMapEntries : public ProtobufVisitor {
     PGPROTO_DEBUG("Created all-map-entries %s %lx",
                   want_keys ? "(keys)" : "(values)", intptr_t(this));
   }
-
-  void SetNext(ProtobufVisitor* next) override { next_ = next; }
 
   ProtobufVisitor* BeginField(int number, int wire_type) override {
     switch (scope_) {
@@ -706,7 +895,6 @@ class AllMapEntries : public ProtobufVisitor {
  private:
   const bool want_keys_;
   const pb::FieldDescriptor::Type ty_;
-  ProtobufVisitor* next_;
 
   enum class Scope {
     Outermost,
@@ -715,169 +903,6 @@ class AllMapEntries : public ProtobufVisitor {
     InUnwantedOtherField,
   };
   Scope scope_;
-};
-
-// Thrown as an exception for convenience.
-// TODO: this goes against some best practices. Is this worth changing?
-class LimitReached {};
-
-class Emitter : public ProtobufVisitor {
- public:
-  std::vector<std::string> rows;
-
- protected:
-  Emitter(pb::FieldDescriptor::Type ty, std::optional<uint64_t> limit)
-      : ty_(ty) {}
-
-  const pb::FieldDescriptor::Type ty_;
-  const std::string type_url_;
-  const std::optional<uint64_t> limit_;
-
-  template <typename T>
-  void Emit(const T& value) {
-    EmitStr(std::move(std::to_string(value)));
-  }
-
-  void EmitStr(std::string&& str) {
-    PGPROTO_DEBUG("EmitStr(%s)", str.c_str());
-    rows.push_back(str);
-    if (limit_ && rows.size() >= *limit_) {
-      PGPROTO_DEBUG("Result limit reached");
-      throw LimitReached();
-    }
-  }
-};
-
-class PrimitiveEmitter : public Emitter {
- public:
-  PrimitiveEmitter(pb::FieldDescriptor::Type ty, std::optional<uint64_t> limit)
-      : Emitter(ty, limit) {
-    PGPROTO_DEBUG("Created primitive emitter %d %lx", static_cast<int>(ty_),
-                  intptr_t(this));
-  }
-
-  using T = pb::FieldDescriptor::Type;
-  using WFL = pb::internal::WireFormatLite;
-
-  std::pair<LengthDelimitedFieldTreatment, ProtobufVisitor*>
-  ReadLengthDelimitedField(const FieldInfo& field) override {
-    return std::make_pair(CompositeFieldTreatmentForType(ty_), this);
-  }
-
-  void ReadPrimitive(const FieldInfo& field) override {
-#ifndef PROTOBUF_LITTLE_ENDIAN
-    static_assert(false, "big-endian not yet supported");
-#endif
-    PGPROTO_DEBUG("Emit primitive %d (wt %d, ty %d)", field.number,
-                  field.wire_type, ty_);
-    switch (ty_) {
-      case T::TYPE_DOUBLE:
-        Emit(WFL::DecodeDouble(field.value.as_uint64));
-        break;
-      case T::TYPE_FLOAT:
-        Emit(WFL::DecodeFloat(field.value.as_uint32));
-        break;
-      case T::TYPE_INT64:
-      case T::TYPE_SFIXED64:
-        Emit(static_cast<int64_t>(field.value.as_uint64));
-        break;
-      case T::TYPE_UINT64:
-      case T::TYPE_FIXED64:
-        Emit(field.value.as_uint64);
-        break;
-      case T::TYPE_INT32:
-      case T::TYPE_SFIXED32:
-        Emit(static_cast<int32_t>(field.value.as_uint32));
-        break;
-      case T::TYPE_FIXED32:
-      case T::TYPE_UINT32:
-        Emit(field.value.as_uint32);
-        break;
-      case T::TYPE_BOOL:
-        EmitStr(std::string(field.value.as_uint64 != 0 ? "true" : "false"));
-        break;
-      case T::TYPE_SINT32:
-        Emit(WFL::ZigZagDecode32(field.value.as_uint32));
-        break;
-      case T::TYPE_SINT64:
-        Emit(WFL::ZigZagDecode64(field.value.as_uint64));
-        break;
-      default:
-        throw BadProto(std::string("unrecognized primitive field type: ") +
-                       std::to_string(ty_));
-    }
-  }
-
-  void ReadString(std::string&& s) override { EmitStr(std::move(s)); }
-
-  void ReadBytes(std::string&& s) override {
-    std::stringstream ss;
-    ss << "\\x";
-    ss << std::hex << std::setfill('0') << std::uppercase;
-    for (char c : s) {
-      ss << std::setw(2) << static_cast<unsigned int>(c);
-    }
-
-    EmitStr(ss.str());
-  }
-};
-
-class EnumEmitter : public Emitter {
- public:
-  EnumEmitter(const pb::EnumDescriptor* ed, std::optional<uint64_t> limit)
-      : Emitter(pb::FieldDescriptor::Type::TYPE_ENUM, limit), ed_(ed) {
-    PGPROTO_DEBUG("Created enum emitter %s %lx",
-                  static_cast<int>(ed_->full_name()), intptr_t(this));
-  }
-
-  void ReadPrimitive(const FieldInfo& field) override {
-    uint64_t n = field.value.as_uint64;
-    const pb::EnumValueDescriptor* vd = ed_->FindValueByNumber(n);
-    if (vd != nullptr) {
-      EmitStr(std::string(vd->name()));
-    } else {
-      return Emit(n);
-    }
-  }
-
- private:
-  const pb::EnumDescriptor* ed_;
-};
-
-class MessageEmitter : public Emitter {
- public:
-  MessageEmitter(pb::util::TypeResolver* type_resolver, std::string&& type_url,
-                 std::optional<uint64_t> limit)
-      : Emitter(pb::FieldDescriptor::Type::TYPE_MESSAGE, limit),
-        type_resolver_(type_resolver),
-        type_url_(type_url) {
-    PGPROTO_DEBUG("Created message emitter %d %lx", static_cast<int>(ty_),
-                  intptr_t(this));
-  }
-
-  std::pair<LengthDelimitedFieldTreatment, ProtobufVisitor*>
-  ReadLengthDelimitedField(const FieldInfo& field) override {
-    return std::make_pair(LengthDelimitedFieldTreatment::Buffer, this);
-  }
-
-  void BufferedValue(std::string&& s) override {
-    std::string json;
-    if (type_url_.empty()) {
-      throw BadQuery("result type not known");  // Should not happen
-    }
-    PGPROTO_DEBUG("Converting %lu bytes to JSON: %s", s.size(),
-                  type_url_.c_str());
-    if (!pb::util::BinaryToJsonString(type_resolver_, type_url_, s, &json)
-             .ok()) {
-      throw BadProto("failed to convert submessage to JSON");
-    }
-
-    EmitStr(std::move(json));
-  }
-
- private:
-  pb::util::TypeResolver* const type_resolver_;
-  const std::string type_url_;
 };
 
 }  // namespace
@@ -908,9 +933,7 @@ class QueryImpl {
                                        const std::string& query,
                                        std::string::size_type* query_start);
 
-  void CompileQueryPart(const pb::Descriptor** desc,
-                        pb::FieldDescriptor::Type* ty,
-                        const pb::EnumDescriptor** ed, const std::string& part);
+  void CompileQueryPart(const std::string& part, DescPtrs* desc_ptrs);
 
   static void ParseNumericMapKey(const std::string& s,
                                  pb::FieldDescriptor::Type ty,
@@ -971,10 +994,14 @@ void QueryImpl::CompileQuery(const descriptor_db::DescDb& desc_db,
       GetDescSet(desc_db, query, &query_start);
   type_resolver_ = desc_set.type_resolver.get();
 
-  const pb::Descriptor* desc = GetDesc(desc_set, query, &query_start);
-  assert(desc != nullptr);
-  pb::FieldDescriptor::Type ty = pb::FieldDescriptor::Type::TYPE_MESSAGE;
-  const pb::EnumDescriptor* enum_desc = nullptr;
+  DescPtrs desc_ptrs{
+      .ty = pb::FieldDescriptor::Type::TYPE_MESSAGE,
+      .desc = GetDesc(desc_set, query, &query_start),
+      .enum_desc = nullptr,
+      .is_repeated = false,
+      .is_map = false,
+  };
+  assert(desc_ptrs.desc != nullptr);
 
   visitors_.clear();
   if (query_start < query.size()) {
@@ -988,10 +1015,12 @@ void QueryImpl::CompileQuery(const descriptor_db::DescDb& desc_db,
   for (std::string::size_type i = query_start; i < query.size(); ++i) {
     char ch = query[i];
     if (ch == '.') {
-      CompileQueryPart(&desc, &ty, &enum_desc, part_buf);
-      PGPROTO_DEBUG("Query part compiled: visitors=%lu, desc=%s, ty=%d",
-                    visitors_.size() - 1,
-                    desc ? desc->full_name().c_str() : "NULL", ty);
+      CompileQueryPart(part_buf, &desc_ptrs);
+      PGPROTO_DEBUG(
+          "Query part compiled: visitors=%lu, desc=%s, ty=%d",
+          visitors_.size() - 1,
+          desc_ptrs.desc ? desc_ptrs.desc->full_name().c_str() : "NULL",
+          desc_ptrs.ty);
       part_buf.clear();
 
       visitors_.push_back(std::make_unique<DescendIntoSubmessage>());
@@ -1001,27 +1030,16 @@ void QueryImpl::CompileQuery(const descriptor_db::DescDb& desc_db,
   }
 
   if (!part_buf.empty()) {
-    CompileQueryPart(&desc, &ty, &enum_desc, part_buf);
+    CompileQueryPart(part_buf, &desc_ptrs);
     PGPROTO_DEBUG("Final query part compiled: visitors=%lu, desc=%s, ty=%d",
                   visitors_.size() - 1,
-                  desc ? desc->full_name().c_str() : "NULL", ty);
+                  desc_ptrs.desc ? desc_ptrs.desc->full_name().c_str() : "NULL",
+                  desc_ptrs.ty);
     part_buf.clear();
   }
 
-  std::unique_ptr<Emitter> emitter_holder;
-  if (ty == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
-    assert(desc != nullptr);
-    std::string type_url;
-    type_url += "type.googleapis.com/";
-    type_url += desc->full_name();
-    emitter_holder.reset(
-        new MessageEmitter(type_resolver_, std::move(type_url), limit));
-  } else if (ty == pb::FieldDescriptor::Type::TYPE_ENUM) {
-    assert(enum_desc != nullptr);
-    emitter_holder.reset(new EnumEmitter(enum_desc, limit));
-  } else {
-    emitter_holder.reset(new PrimitiveEmitter(ty, limit));
-  }
+  std::unique_ptr<Emitter> emitter_holder(
+      Emitter::Create(desc_ptrs, type_resolver_, limit));
   emitter_ = emitter_holder.get();
   visitors_.push_back(std::move(emitter_holder));
 
@@ -1072,11 +1090,8 @@ const pb::Descriptor* QueryImpl::GetDesc(const descriptor_db::DescSet& desc_set,
   return desc;
 }
 
-void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
-                                 pb::FieldDescriptor::Type* ty,
-                                 const pb::EnumDescriptor** ed,
-                                 const std::string& part) {
-  if (*desc == nullptr) {
+void QueryImpl::CompileQueryPart(const std::string& part, DescPtrs* desc_ptrs) {
+  if (desc_ptrs->desc == nullptr) {
     throw BadQuery(std::string("query does not refer to a known field: ") +
                    part);
   }
@@ -1099,23 +1114,27 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     if (end != &part[field_selector_end]) {
       throw BadQuery(std::string("invalid field number in query: ") + part);
     }
-    fd = (*desc)->FindFieldByNumber(static_cast<int>(l));
+    fd = desc_ptrs->desc->FindFieldByNumber(static_cast<int>(l));
   } else {
-    fd = (*desc)->FindFieldByName(
+    fd = desc_ptrs->desc->FindFieldByName(
         std::string(part.substr(0, field_selector_end)));
   }
 
   if (fd == nullptr) {
     throw BadQuery(std::string("field not found: ") + part + " in " +
-                   (*desc)->full_name());
+                   desc_ptrs->desc->full_name());
   }
-  *ty = fd->type();
-  *desc = nullptr;
-  *ed = nullptr;
+
+  desc_ptrs->is_repeated = fd->is_repeated();
+  desc_ptrs->is_map = fd->is_map();
+
+  desc_ptrs->ty = fd->type();
+  desc_ptrs->desc = nullptr;
+  desc_ptrs->enum_desc = nullptr;
   if (fd->type() == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
-    *desc = fd->message_type();
+    desc_ptrs->desc = fd->message_type();
   } else if (fd->type() == pb::FieldDescriptor::Type::TYPE_ENUM) {
-    *ed = fd->enum_type();
+    desc_ptrs->enum_desc = fd->enum_type();
   }
 
   if (!fd->is_repeated() && field_selector_end != part.size()) {
@@ -1124,16 +1143,16 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
   }
 
   std::unique_ptr<FieldSelector> field_selector_holder(
-      std::make_unique<FieldSelector>(fd->number(), *ty, fd->is_packed()));
+      std::make_unique<FieldSelector>(fd->number(), desc_ptrs->ty,
+                                      fd->is_packed()));
   FieldSelector* field_selector = field_selector_holder.get();
   visitors_.push_back(std::move(field_selector_holder));
 
+  std::string filter_str = part.substr(field_selector_end);
   if (fd->is_repeated()) {
-    std::string rep_selector = part.substr(field_selector_end);
-
-    bool bracketed = rep_selector.size() > 0 && rep_selector.at(0) == '[' &&
-                     rep_selector[rep_selector.size() - 1] == ']';
-    bool keys_selector = rep_selector == "|keys";
+    bool bracketed = filter_str.size() > 0 && filter_str.at(0) == '[' &&
+                     filter_str[filter_str.size() - 1] == ']';
+    bool keys_selector = filter_str == "|keys";
     if (!bracketed && !keys_selector) {
       throw BadQuery(std::string(
           "repeated field must be followed by an array/map selector "
@@ -1141,8 +1160,8 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     }
 
     if (bracketed) {
-      rep_selector = rep_selector.substr(1, rep_selector.size() - 2);
-      if (rep_selector.empty()) {
+      filter_str = filter_str.substr(1, filter_str.size() - 2);
+      if (filter_str.empty()) {
         throw BadQuery(
             "empty array/map selector '[]' is invalid - did you mean '[*]'?");
       }
@@ -1153,35 +1172,37 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     }
 
     if (fd->is_map()) {
-      assert(*desc != nullptr);
-      const pb::FieldDescriptor* key_field = (*desc)->FindFieldByNumber(1);
-      const pb::FieldDescriptor* value_field = (*desc)->FindFieldByNumber(2);
+      assert(desc_ptrs->desc != nullptr);
+      const pb::FieldDescriptor* key_field =
+          desc_ptrs->desc->FindFieldByNumber(1);
+      const pb::FieldDescriptor* value_field =
+          desc_ptrs->desc->FindFieldByNumber(2);
       if (key_field == nullptr || value_field == nullptr) {
         throw BadProto("invalid map field");
       }
 
       if (keys_selector) {
-        *ty = key_field->type();
+        desc_ptrs->ty = key_field->type();
 
-        visitors_.push_back(
-            std::make_unique<AllMapEntries>(true /* want_keys */, *ty));
+        visitors_.push_back(std::make_unique<AllMapEntries>(
+            true /* want_keys */, desc_ptrs->ty));
       } else {
-        *ty = value_field->type();
+        desc_ptrs->ty = value_field->type();
         if (value_field->type() == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
-          *desc = value_field->message_type();
+          desc_ptrs->desc = value_field->message_type();
         } else {
-          *desc = nullptr;
+          desc_ptrs->desc = nullptr;
         }
 
-        if (rep_selector == "*") {
-          visitors_.push_back(
-              std::make_unique<AllMapEntries>(false /* want_keys */, *ty));
+        if (filter_str == "*") {
+          visitors_.push_back(std::make_unique<AllMapEntries>(
+              false /* want_keys */, desc_ptrs->ty));
         } else {
-          *ty = value_field->type();
+          desc_ptrs->ty = value_field->type();
           if (value_field->type() == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
-            *desc = value_field->message_type();
+            desc_ptrs->desc = value_field->message_type();
           } else {
-            *desc = nullptr;
+            desc_ptrs->desc = nullptr;
           }
 
           using WFL = pb::internal::WireFormatLite;
@@ -1194,10 +1215,10 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
 
           std::string wanted_key_contents;
           if (key_field->type() == pb::FieldDescriptor::TYPE_STRING) {
-            wanted_key_field.value.as_size = rep_selector.size();
-            wanted_key_contents = rep_selector;
+            wanted_key_field.value.as_size = filter_str.size();
+            wanted_key_contents = filter_str;
           } else {
-            ParseNumericMapKey(rep_selector, key_field->type(),
+            ParseNumericMapKey(filter_str, key_field->type(),
                                &wanted_key_field.value);
           }
 
@@ -1208,20 +1229,20 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
     } else {
       assert(fd->is_repeated());
 
-      if (rep_selector != "*") {
+      if (filter_str != "*") {
         size_t end;
         long n;
         try {
-          n = std::stol(rep_selector.c_str(), &end, 10);
+          n = std::stol(filter_str.c_str(), &end, 10);
         } catch (const std::invalid_argument& e) {
-          throw BadQuery(std::string("invalid numeric key: ") + rep_selector);
+          throw BadQuery(std::string("invalid numeric key: ") + filter_str);
         } catch (const std::out_of_range& e) {
           throw BadQuery(std::string("numeric key out of range key type: ") +
-                         rep_selector);
+                         filter_str);
         }
-        if (end != rep_selector.size()) {
+        if (end != filter_str.size()) {
           throw BadQuery(std::string("expected numeric indexer at: ") +
-                         rep_selector);
+                         filter_str);
         }
 
         field_selector->SetWantedIndex(static_cast<int>(n));

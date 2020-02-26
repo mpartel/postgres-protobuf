@@ -1,6 +1,8 @@
 
+# If you change the major or minor version, remember to edit
+# `postgres_protobuf.control` too.
 # To release a new version, change these numbers and
-# run ./build-and-test.sh to update the test cases
+# run ./build-and-test.sh to update the test cases.
 EXT_VERSION_MAJOR = 0
 EXT_VERSION_MINOR = 1
 EXT_VERSION_PATCHLEVEL = 2
@@ -48,13 +50,16 @@ $(OBJS) $(BC_FILES): $(PROTOC)
 # Good enough for a small project.
 $(OBJS) $(BC_FILES): $(wildcard *.hpp)
 
+# Changes to this makefile should also trigger a recompile
+$(OBJS) $(BC_FILES): Makefile
+
 $(PROTOC):
 	./build-protobuf-library.sh
 
-sql/postgres_protobuf.sql: generate_test_cases.rb $(DESC_SET_FILES)
+sql/postgres_protobuf.sql: generate_test_cases.rb $(DESC_SET_FILES) Makefile
 	env PROTOC=$(PROTOC) ./generate_test_cases.rb sql
 
-expected/postgres_protobuf.out: generate_test_cases.rb $(DESC_SET_FILES)
+expected/postgres_protobuf.out: generate_test_cases.rb $(DESC_SET_FILES) Makefile
 	env PROTOC=$(PROTOC) ./generate_test_cases.rb expected-output
 
 %.pb: %.proto $(PROTOC) 
