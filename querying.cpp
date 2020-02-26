@@ -1057,7 +1057,9 @@ const pb::Descriptor* QueryImpl::GetDesc(const descriptor_db::DescSet& desc_set,
                                          std::string::size_type* query_start) {
   std::string::size_type i = query.find(':', *query_start);
   if (i == std::string::npos) {
-    throw BadQuery("invalid protobuf query - expected: [<descriptor_set>:]<message_name>:<path>");
+    throw BadQuery(
+        "invalid protobuf query - expected: "
+        "[<descriptor_set>:]<message_name>:<path>");
   }
   std::string desc_name(query.substr(*query_start, i - *query_start));
   *query_start = i + 1;
@@ -1075,7 +1077,8 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
                                  const pb::EnumDescriptor** ed,
                                  const std::string& part) {
   if (*desc == nullptr) {
-    throw BadQuery(std::string("query does not refer to a known field: ") + part);
+    throw BadQuery(std::string("query does not refer to a known field: ") +
+                   part);
   }
 
   if (part.empty()) {
@@ -1128,8 +1131,8 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
   if (fd->is_repeated()) {
     std::string rep_selector = part.substr(field_selector_end);
 
-    bool bracketed =
-        rep_selector[0] == '[' && rep_selector[rep_selector.size() - 1] == ']';
+    bool bracketed = rep_selector.size() > 0 && rep_selector.at(0) == '[' &&
+                     rep_selector[rep_selector.size() - 1] == ']';
     bool keys_selector = rep_selector == "|keys";
     if (!bracketed && !keys_selector) {
       throw BadQuery(std::string(
@@ -1207,12 +1210,18 @@ void QueryImpl::CompileQueryPart(const pb::Descriptor** desc,
 
       if (rep_selector != "*") {
         size_t end;
-        long n = std::stol(rep_selector.c_str(), &end, 10);
-        if (end != rep_selector.size()) {
-          throw BadQuery(std::string("expected numeric indexer at: ") + rep_selector);
+        long n;
+        try {
+          n = std::stol(rep_selector.c_str(), &end, 10);
+        } catch (const std::invalid_argument& e) {
+          throw BadQuery(std::string("invalid numeric key: ") + rep_selector);
+        } catch (const std::out_of_range& e) {
+          throw BadQuery(std::string("numeric key out of range key type: ") +
+                         rep_selector);
         }
-        if (n < 0 || n > static_cast<long>(std::numeric_limits<int>::max())) {
-          throw BadQuery(std::string("index out of bounds: " + rep_selector));
+        if (end != rep_selector.size()) {
+          throw BadQuery(std::string("expected numeric indexer at: ") +
+                         rep_selector);
         }
 
         field_selector->SetWantedIndex(static_cast<int>(n));
@@ -1229,16 +1238,16 @@ T ParseNum(const std::string& s) {
       typename std::conditional<std::is_unsigned_v<T>, unsigned long long,
                                 signed long long>::type;
   Tmp tmp;
-  if constexpr (std::is_unsigned_v<T>) {
-    tmp = std::stoull(s, &end);
-  } else {
-    tmp = std::stoll(s, &end);
-  }
-  if (tmp < std::numeric_limits<T>::min()) {
-    throw BadQuery(std::string("numeric key too small for key type: ") + s);
-  }
-  if (tmp > std::numeric_limits<T>::max()) {
-    throw BadQuery(std::string("numeric key too large for key type: ") + s);
+  try {
+    if constexpr (std::is_unsigned_v<T>) {
+      tmp = std::stoull(s, &end);
+    } else {
+      tmp = std::stoll(s, &end);
+    }
+  } catch (const std::invalid_argument& e) {
+    throw BadQuery(std::string("invalid numeric key: ") + s);
+  } catch (const std::out_of_range& e) {
+    throw BadQuery(std::string("numeric key out of range key type: ") + s);
   }
   if (end != s.size()) {
     throw BadQuery(std::string("invalid numeric key: ") + s);

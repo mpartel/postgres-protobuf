@@ -248,6 +248,10 @@ Datum protobuf_to_json_text(PG_FUNCTION_ARGS) {
     ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
                     errmsg("invalid query: protobuf type %s not found",
                            protobuf_type_str.c_str())));
+  } catch (...) {
+    ereport(ERROR,
+            (errcode(ERRCODE_INTERNAL_ERROR),
+             errmsg("unknown C++ exception in postgres_protobuf extension")));
   }
 }
 
@@ -283,6 +287,10 @@ Datum protobuf_from_json_text(PG_FUNCTION_ARGS) {
     ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
                     errmsg("invalid query: protobuf type %s not found",
                            protobuf_type_str.c_str())));
+  } catch (...) {
+    ereport(ERROR,
+            (errcode(ERRCODE_INTERNAL_ERROR),
+             errmsg("unknown C++ exception in postgres_protobuf extension")));
   }
 }
 
