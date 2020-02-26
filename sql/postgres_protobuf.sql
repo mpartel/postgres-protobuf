@@ -249,6 +249,16 @@ SELECT protobuf_query('pgpb.test.ExampleMessage:an_enum', '\x3002'::BYTEA) AS re
 --
 SELECT protobuf_query('pgpb.test.ExampleMessage:', '\x0a02187b'::BYTEA) AS result;
 --
+-- Array queries
+--
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:repeated_int32[*]', '\x12037bc803'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:map_int2str[*]', '\x4207087b1203414141420808c8031203424242'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:map_int2str|keys', '\x4207087b1203414141420808c8031203424242'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:', '\x0a02187b'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars', '\x0a02187b'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars.int32_field', '\x0a02187b'::BYTEA) AS result;
+SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars.string_field', '\x0a02187b'::BYTEA) AS result;
+--
 -- Converting to JSON
 --
 SELECT protobuf_to_json_text('pgpb.test.ExampleMessage', '\x0a02187b'::BYTEA) AS result;

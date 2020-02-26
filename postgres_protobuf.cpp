@@ -13,8 +13,10 @@ extern "C" {
 #include <postgres.h>
 
 #include <access/htup_details.h>
+#include <catalog/pg_type.h>
 #include <fmgr.h>
 #include <funcapi.h>
+#include <utils/lsyscache.h>
 }  // extern "C"
 
 namespace postgres_protobuf {
@@ -88,6 +90,7 @@ extern "C" {
 PG_FUNCTION_INFO_V1(protobuf_extension_version);
 PG_FUNCTION_INFO_V1(protobuf_query);
 PG_FUNCTION_INFO_V1(protobuf_query_multi);
+PG_FUNCTION_INFO_V1(protobuf_query_array);
 PG_FUNCTION_INFO_V1(protobuf_to_json_text);
 PG_FUNCTION_INFO_V1(protobuf_from_json_text);
 
@@ -123,6 +126,61 @@ Datum protobuf_query(PG_FUNCTION_ARGS) {
     } else {
       PG_RETURN_NULL();
     }
+  } catch (const std::bad_alloc& e) {
+    ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("out of memory")));
+  } catch (const BadProto& e) {
+    // TODO: is this a good error code?
+    ereport(ERROR, (errcode(ERRCODE_INVALID_BINARY_REPRESENTATION),
+                    errmsg("invalid protobuf: %s", e.msg.c_str())));
+  } catch (const BadQuery& e) {
+    // TODO: is this a good error code?
+    ereport(ERROR, (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+                    errmsg("invalid query: %s", e.msg.c_str())));
+  } catch (const RecursionDepthExceeded& e) {
+    // TODO: is this a good error code?
+    // TODO: make the limit configurable
+    ereport(ERROR, (errcode(ERRCODE_PROGRAM_LIMIT_EXCEEDED),
+                    errmsg("protobuf recursion depth exceeded")));
+  } catch (...) {
+    ereport(ERROR,
+            (errcode(ERRCODE_INTERNAL_ERROR),
+             errmsg("unknown C++ exception in postgres_protobuf extension")));
+  }
+}
+
+Datum protobuf_query_array(PG_FUNCTION_ARGS) {
+  using namespace querying;
+
+  assert(PG_NARGS() == 2);
+
+  try {
+    text* query_text = PG_GETARG_TEXT_P(0);
+    std::string query_str(VARDATA_ANY(query_text),
+                          VARSIZE_ANY_EXHDR(query_text));
+    querying::Query query(query_str, std::nullopt);
+    PGPROTO_DEBUG("Query parsed");
+
+    bytea* proto_bytea = PG_GETARG_BYTEA_P(1);
+    const uint8* proto_data =
+        reinterpret_cast<const uint8*>(VARDATA_ANY(proto_bytea));
+    size_t proto_len = VARSIZE_ANY_EXHDR(proto_bytea);
+    const auto rows = query.Run(proto_data, proto_len);
+    PGPROTO_DEBUG("Query ran. Results: %lu", rows.size());
+    Datum* elements = static_cast<Datum*>(palloc0_or_throw_bad_alloc(sizeof(Datum) * rows.size()));
+    for (size_t i = 0; i < rows.size(); ++i) {
+      const std::string& row = rows[i];
+      size_t size = VARHDRSZ + row.size();
+      bytea* p = static_cast<bytea*>(palloc0_or_throw_bad_alloc(size));
+      SET_VARSIZE(p, size);
+      memcpy(VARDATA(p), row.data(), row.size());
+      elements[i] = reinterpret_cast<Datum>(p);
+    }
+    int16 typlen;
+    bool typbyval;
+    char typalign;
+    get_typlenbyvalalign(TEXTOID, &typlen, &typbyval, &typalign);
+    ArrayType* result = construct_array(elements, rows.size(), TEXTOID, typlen, typbyval, typalign);
+    PG_RETURN_ARRAYTYPE_P(result);
   } catch (const std::bad_alloc& e) {
     ereport(ERROR, (errcode(ERRCODE_OUT_OF_MEMORY), errmsg("out of memory")));
   } catch (const BadProto& e) {

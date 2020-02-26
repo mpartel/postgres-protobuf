@@ -4,8 +4,8 @@
 # To release a new version, change these numbers and
 # run ./build-and-test.sh to update the test cases.
 EXT_VERSION_MAJOR = 0
-EXT_VERSION_MINOR = 1
-EXT_VERSION_PATCHLEVEL = 2
+EXT_VERSION_MINOR = 2
+EXT_VERSION_PATCHLEVEL = 0
 EXT_VERSION = $(EXT_VERSION_MAJOR).$(EXT_VERSION_MINOR).$(EXT_VERSION_PATCHLEVEL)
 
 PROTOBUF_ROOT=third_party/protobuf
@@ -13,7 +13,7 @@ PROTOC=$(PROTOBUF_ROOT)/src/protoc
 
 MODULE_big = postgres_protobuf
 EXTENSION = postgres_protobuf
-DATA = postgres_protobuf--0.1.sql
+DATA = postgres_protobuf--0.1.sql postgres_protobuf--0.1--0.2.sql
 DOCS = README.md
 REGRESS = postgres_protobuf
 OBJS=$(patsubst %.cpp, %.o, $(wildcard *.cpp))

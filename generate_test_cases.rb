@@ -318,6 +318,22 @@ TestGen.new(mode).generate do
     end
   end
 
+  section "Array queries" do
+    with_proto('repeated_int32: 123, repeated_int32: 456') do
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:repeated_int32[*]', #{pg_proto}) AS result;", ['{123,456}'])
+    end
+    with_proto('map_int2str: { key: 123, value: "AAA" }, map_int2str { key: 456, value: "BBB" }') do
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:map_int2str[*]', #{pg_proto}) AS result;", ['{AAA,BBB}'])
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:map_int2str|keys', #{pg_proto}) AS result;", ['{123,456}'])
+    end
+    with_proto('scalars { int32_field: 123 }') do
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:', #{pg_proto}) AS result;", ['{"{\"scalars\":{\"int32Field\":123}}"}'])
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars', #{pg_proto}) AS result;", ['{"{\"int32Field\":123}"}'])
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars.int32_field', #{pg_proto}) AS result;", ['{123}'])
+      test_sql("SELECT protobuf_query_array('pgpb.test.ExampleMessage:scalars.string_field', #{pg_proto}) AS result;", ['{}'])
+    end
+  end
+
   section "Converting to JSON" do
     with_proto('scalars { int32_field: 123 }') do
       test_sql("SELECT protobuf_to_json_text('pgpb.test.ExampleMessage', #{pg_proto}) AS result;", ['{"scalars":{"int32Field":123}}'])
