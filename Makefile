@@ -22,7 +22,7 @@ DESC_SET_FILES=$(patsubst %.proto, %.pb, $(wildcard test_protos/*.proto))
 
 PG_CPPFLAGS=-I$(PROTOBUF_ROOT)/src -Wno-deprecated -std=c++17 -Wno-register -DEXT_VERSION_MAJOR=$(EXT_VERSION_MAJOR) -DEXT_VERSION_MINOR=$(EXT_VERSION_MINOR) -DEXT_VERSION_PATCHLEVEL=$(EXT_VERSION_PATCHLEVEL)
 PG_CXXFLAGS=-fPIC
-PG_LDFLAGS=-Wl,--whole-archive $(PROTOBUF_ROOT)/src/.libs/libprotobuf.a -Wl,--no-whole-archive
+PG_LDFLAGS=-Wl,--whole-archive $(PROTOBUF_ROOT)/src/.libs/libprotobuf.a -Wl,--no-whole-archive -lz -lstdc++
 
 ifdef DEBUG_PRINT
 PG_CPPFLAGS+=-DDEBUG_PRINT
