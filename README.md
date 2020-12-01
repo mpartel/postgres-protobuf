@@ -2,6 +2,7 @@
 
 ![Tests on PG11](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG11/badge.svg)
 ![Tests on PG12](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG12/badge.svg)
+![Tests on PG13](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG13/badge.svg)
 
 Features:
 
