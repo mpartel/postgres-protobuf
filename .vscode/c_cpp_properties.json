@@ -4,7 +4,7 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/third_party/protobuf-*/src",
+                "${workspaceFolder}/third_party/protobuf/src",
                 "/usr/include/postgresql",
                 "/usr/include/postgresql/11/server"
             ],
