@@ -280,6 +280,11 @@ TestGen.new(mode).generate do
       test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[0].inner_str', #{pg_proto}) AS result;", ['aaa'])
       test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[1].inner_str', #{pg_proto}) AS result;", ['bbb'])
     end
+
+    with_proto('repeated_inner: { inner_str: "lvl1", repeated_inner: { inner_str: "lvl2" } }') do
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].inner_str', #{pg_proto}) AS result;", ['lvl1'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[0].inner_str', #{pg_proto}) AS result;", ['lvl2'])
+    end
   end
 
   section "Indexing into maps" do

@@ -185,6 +185,8 @@ SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner
 SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[1].inner_str', '\x2a0e1a050a036162631a050a036465662a0e1a050a036161611a050a03626262'::BYTEA) AS result;
 SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[0].inner_str', '\x2a0e1a050a036162631a050a036465662a0e1a050a036161611a050a03626262'::BYTEA) AS result;
 SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[1].inner_str', '\x2a0e1a050a036162631a050a036465662a0e1a050a036161611a050a03626262'::BYTEA) AS result;
+SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].inner_str', '\x2a0e0a046c766c311a060a046c766c32'::BYTEA) AS result;
+SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[0].inner_str', '\x2a0e0a046c766c311a060a046c766c32'::BYTEA) AS result;
 --
 -- Indexing into maps
 --

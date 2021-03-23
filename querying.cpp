@@ -613,6 +613,7 @@ class FieldSelector : public ProtobufVisitor {
         is_packed_(is_packed),
         wanted_index_(-1),
         state_(State::Scanning),
+        current_field_(0),
         current_index_(0) {
     PGPROTO_DEBUG("Created field selector %d %lx", wanted_field,
                   intptr_t(this));
@@ -623,11 +624,12 @@ class FieldSelector : public ProtobufVisitor {
   void Pushed(ProtobufTraverser* traverser) override { traverser_ = traverser; }
 
   ProtobufVisitor* BeginField(int number, int wire_type) override {
+    current_field_ = number;
     if (wire_type == 2) {
       if (is_packed_) {
         state_ = State::EmittingPacked;
       } else {
-        if (WantThisField(number)) {
+        if (ShouldEmitCurrentIndex()) {
           if (ty_ == pb::FieldDescriptor::Type::TYPE_MESSAGE) {
             return next_;
           } else {
@@ -635,7 +637,7 @@ class FieldSelector : public ProtobufVisitor {
           }
         }
       }
-    } else if (WantThisField(number)) {
+    } else if (ShouldEmitCurrentIndex()) {
       return next_;
     }
     return this;
@@ -645,7 +647,7 @@ class FieldSelector : public ProtobufVisitor {
   ReadLengthDelimitedField(const FieldInfo& field) override {
     if (state_ == State::EmittingPacked) {
       return std::make_pair(PackedCompositeFieldTreatmentForType(ty_), this);
-    } else if (WantThisField(field.number)) {
+    } else if (ShouldEmitCurrentIndex()) {
       if (state_ == State::EmittingOtherComposite) {
         return std::make_pair(CompositeFieldTreatmentForType(ty_), next_);
       } else {
@@ -656,10 +658,15 @@ class FieldSelector : public ProtobufVisitor {
     }
   }
 
-  void EndField() override { ++current_index_; }
+  void EndField() override {
+    if (current_field_ == wanted_field_) {
+      ++current_index_;
+    }
+  }
 
   void Popped() override {
     state_ = State::Scanning;
+    current_field_ = 0;
     current_index_ = 0;
   }
 
@@ -676,10 +683,11 @@ class FieldSelector : public ProtobufVisitor {
     EmittingOtherComposite,
   };
   State state_;
+  int current_field_;
   int current_index_;
 
-  bool WantThisField(int number) const {
-    return number == wanted_field_ &&
+  bool ShouldEmitCurrentIndex() const {
+    return current_field_ == wanted_field_ &&
            (wanted_index_ == -1 || current_index_ == wanted_index_);
   }
 };
