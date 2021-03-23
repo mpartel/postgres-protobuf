@@ -21,6 +21,7 @@ message ExampleMessage {
   message InnerMessage {
     string inner_str = 1;
     repeated string inner_repeated = 2;
+    repeated InnerMessage repeated_inner = 3;
   }
 }
 

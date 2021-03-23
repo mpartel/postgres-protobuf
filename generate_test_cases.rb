@@ -250,6 +250,35 @@ TestGen.new(mode).generate do
 
       test_query('pgpb.test.ExampleMessage:repeated_inner[*]', ['{"innerRepeated":["abc","def"]}', '{"innerRepeated":["aaa","bbb"]}'])
       test_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[*]', ['abc', 'def', 'aaa', 'bbb'])
+      test_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[0]', ['abc', 'aaa'])
+      test_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[1]', ['def', 'bbb'])
+
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[0]', #{pg_proto}) AS result;", ['abc'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[1]', #{pg_proto}) AS result;", ['def'])
+      test_sql("SELECT COALESCE(protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].inner_repeated[2]', #{pg_proto}), 'none') AS result;", ['none'])
+    end
+
+    with_proto('repeated_inner: { repeated_inner: { inner_repeated: "abc", inner_repeated: "def" }, repeated_inner: { inner_repeated: "aaa" }, repeated_inner: {}, repeated_inner: { inner_repeated: "bbb" } }') do
+      test_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*]', ['{"innerRepeated":["abc","def"]}', '{"innerRepeated":["aaa"]}', '{}', '{"innerRepeated":["bbb"]}'])
+      test_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*].inner_repeated[*]', ['abc', 'def', 'aaa', 'bbb'])
+
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*].inner_repeated[0]', #{pg_proto}) AS result;", ['abc'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*].inner_repeated[1]', #{pg_proto}) AS result;", ['def'])
+      test_sql("SELECT COALESCE(protobuf_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*].inner_repeated[2]', #{pg_proto}), 'none') AS result;", ['none'])
+
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[0].inner_repeated[0]', #{pg_proto}) AS result;", ['abc'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[0].inner_repeated[1]', #{pg_proto}) AS result;", ['def'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[1].inner_repeated[0]', #{pg_proto}) AS result;", ['aaa'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[3].inner_repeated[0]', #{pg_proto}) AS result;", ['bbb'])
+    end
+
+    with_proto('repeated_inner: { repeated_inner: { inner_str: "abc" }, repeated_inner: { inner_str: "def" } }, repeated_inner: { repeated_inner: { inner_str: "aaa" }, repeated_inner: { inner_str: "bbb" } }') do
+      test_query('pgpb.test.ExampleMessage:repeated_inner[*].repeated_inner[*].inner_str', ['abc', 'def', 'aaa', 'bbb'])
+
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[0].inner_str', #{pg_proto}) AS result;", ['abc'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[0].repeated_inner[1].inner_str', #{pg_proto}) AS result;", ['def'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[0].inner_str', #{pg_proto}) AS result;", ['aaa'])
+      test_sql("SELECT protobuf_query('pgpb.test.ExampleMessage:repeated_inner[1].repeated_inner[1].inner_str', #{pg_proto}) AS result;", ['bbb'])
     end
   end
 
