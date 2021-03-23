@@ -98,7 +98,7 @@ SELECT protobuf_query('path.to.Message:path.to.field', protobuf_as_byte_array) A
 
 The following functions are defined:
 
-- `protobuf_query(query, protobuf)` returns the first matching field in the protobuf, or NULL if missing or proto3 default. (You can [`coalesce`](https://www.postgresql.org/docs/13/functions-conditional.html#FUNCTIONS-COALESCE-NVL-IFNULL) the nulls.)
+- `protobuf_query(query, protobuf)` returns the **first** matching field in the protobuf, or NULL if missing or proto3 default. (You can [`coalesce`](https://www.postgresql.org/docs/13/functions-conditional.html#FUNCTIONS-COALESCE-NVL-IFNULL) the nulls.)
 - `protobuf_query_array(query, protobuf)` returns all matching fields in the protobuf as a text array. Missing or proto3 default values are not returned.
 - `protobuf_query_multi(query, protobuf)` returns all matching fields in the protobuf as a set of rows. Missing or proto3 default values are not returned.
 - `protobuf_to_json_text(protobuf_type, protobuf)` converts the protobuf to a JSON string, assuming it's of the given type.
