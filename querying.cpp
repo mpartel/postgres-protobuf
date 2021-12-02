@@ -611,7 +611,7 @@ class FieldSelector : public ProtobufVisitor {
         wanted_field_(wanted_field),
         ty_(ty),
         is_packed_(is_packed),
-        wanted_index_(-1),
+        wanted_index_(),
         state_(State::Scanning),
         current_field_(0),
         current_index_(0) {
@@ -675,7 +675,7 @@ class FieldSelector : public ProtobufVisitor {
   const int wanted_field_;
   const pb::FieldDescriptor::Type ty_;
   const bool is_packed_;
-  int wanted_index_;
+  std::optional<int> wanted_index_;
 
   enum class State {
     Scanning,
@@ -688,7 +688,7 @@ class FieldSelector : public ProtobufVisitor {
 
   bool ShouldEmitCurrentIndex() const {
     return current_field_ == wanted_field_ &&
-           (wanted_index_ == -1 || current_index_ == wanted_index_);
+           (!wanted_index_.has_value() || current_index_ == wanted_index_.value());
   }
 };
 

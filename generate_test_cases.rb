@@ -239,6 +239,7 @@ TestGen.new(mode).generate do
       test_query('pgpb.test.ExampleMessage:repeated_string[2]', ['ccc'])
       test_query('pgpb.test.ExampleMessage:repeated_string[3]', [])
       test_query('pgpb.test.ExampleMessage:repeated_string[*]', ['aaa', 'bbb', 'ccc'])
+      test_query('pgpb.test.ExampleMessage:repeated_string[-1]', [])
     end
 
     with_proto('repeated_inner: { inner_repeated: "abc", inner_repeated: "def" }, repeated_inner { inner_repeated: "aaa", inner_repeated: "bbb" }') do

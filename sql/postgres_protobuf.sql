@@ -124,6 +124,10 @@ SELECT protobuf_query_multi(
   '\x1a036161611a036262621a03636363'::BYTEA
 ) AS result;
 SELECT protobuf_query_multi(
+  'pgpb.test.ExampleMessage:repeated_string[-1]',
+  '\x1a036161611a036262621a03636363'::BYTEA
+) AS result;
+SELECT protobuf_query_multi(
   'pgpb.test.ExampleMessage:repeated_inner[0].inner_repeated[*]',
   '\x2a0a120361626312036465662a0a12036161611203626262'::BYTEA
 ) AS result;
