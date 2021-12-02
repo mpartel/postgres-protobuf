@@ -3,6 +3,7 @@
 ![Tests on PG11](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG11/badge.svg)
 ![Tests on PG12](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG12/badge.svg)
 ![Tests on PG13](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG13/badge.svg)
+![Tests on PG14](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG14/badge.svg)
 
 Features:
 
@@ -125,7 +126,7 @@ before relying on it too heavily in a design.
 
 ### Security
 
-This extension is fairly new and written in C++, so some caution is warranted.
+This extension is written in C++, so some caution is warranted.
 It's may be unwise to give it untrusted queries or protobuf data that you haven't
 parsed and reserialized first. Conversion to/from JSON should be safer since it
 thinly wraps the well-tested protobuf library, but see the note about memory management below.
