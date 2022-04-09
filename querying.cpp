@@ -27,6 +27,7 @@
 extern "C" {
 // Must be included before other Postgres headers
 #include <postgres.h>
+#include <common/shortest_dec.h>
 }
 
 namespace pb = ::google::protobuf;
@@ -463,10 +464,16 @@ class PrimitiveEmitter : public Emitter {
                   field.wire_type, ty_);
     switch (ty_) {
       case T::TYPE_DOUBLE:
-        Emit(WFL::DecodeDouble(field.value.as_uint64));
+        {
+          char *cstr = double_to_shortest_decimal(WFL::DecodeDouble(field.value.as_uint64));
+          EmitStr(std::move(std::string(cstr)));
+        }
         break;
       case T::TYPE_FLOAT:
-        Emit(WFL::DecodeFloat(field.value.as_uint32));
+        {
+          char *cstr = float_to_shortest_decimal(WFL::DecodeFloat(field.value.as_uint32));
+          EmitStr(std::move(std::string(cstr)));
+        }
         break;
       case T::TYPE_INT64:
       case T::TYPE_SFIXED64:
