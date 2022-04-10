@@ -199,6 +199,9 @@ TestGen.new(mode).generate do
     with_proto('scalars { double_field: 123.456 }') do
       test_query('pgpb.test.ExampleMessage:scalars.double_field', ['123.456'])
     end
+    with_proto('scalars { double_field: 0.0000001 }') do
+      test_query('pgpb.test.ExampleMessage:scalars.double_field', ['1e-07'])
+    end
 
     with_proto('scalars { bool_field: true }') do
       test_query('pgpb.test.ExampleMessage:scalars.bool_field', ['true'])

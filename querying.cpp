@@ -465,14 +465,16 @@ class PrimitiveEmitter : public Emitter {
     switch (ty_) {
       case T::TYPE_DOUBLE:
         {
-          char *cstr = double_to_shortest_decimal(WFL::DecodeDouble(field.value.as_uint64));
-          EmitStr(std::move(std::string(cstr)));
+          char buf[DOUBLE_SHORTEST_DECIMAL_LEN];
+          double_to_shortest_decimal_buf(WFL::DecodeDouble(field.value.as_uint64), buf);
+          EmitStr(std::move(std::string(buf)));
         }
         break;
       case T::TYPE_FLOAT:
         {
-          char *cstr = float_to_shortest_decimal(WFL::DecodeFloat(field.value.as_uint32));
-          EmitStr(std::move(std::string(cstr)));
+          char buf[FLOAT_SHORTEST_DECIMAL_LEN];
+          float_to_shortest_decimal_buf(WFL::DecodeFloat(field.value.as_uint32), buf);
+          EmitStr(std::move(std::string(buf)));
         }
         break;
       case T::TYPE_INT64:
