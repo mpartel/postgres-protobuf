@@ -1,8 +1,5 @@
 #include "querying.hpp"
 
-#include "descriptor_db.hpp"
-#include "postgres_protobuf_common.hpp"
-
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -13,6 +10,10 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+#include "descriptor_db.hpp"
+#include "postgres_protobuf_common.hpp"
+#include "postgres_utils.hpp"
 
 // Protobuf headers must be included before any Postgres headers because
 // the latter pollute names like 'FATAL' used by macros in the former.
@@ -27,7 +28,6 @@
 extern "C" {
 // Must be included before other Postgres headers
 #include <postgres.h>
-#include <common/shortest_dec.h>
 }
 
 namespace pb = ::google::protobuf;
@@ -464,18 +464,12 @@ class PrimitiveEmitter : public Emitter {
                   field.wire_type, ty_);
     switch (ty_) {
       case T::TYPE_DOUBLE:
-        {
-          char buf[DOUBLE_SHORTEST_DECIMAL_LEN];
-          double_to_shortest_decimal_buf(WFL::DecodeDouble(field.value.as_uint64), buf);
-          EmitStr(std::move(std::string(buf)));
-        }
+        EmitStr(std::move(postgres_utils::double_to_string(
+            WFL::DecodeDouble(field.value.as_uint64))));
         break;
       case T::TYPE_FLOAT:
-        {
-          char buf[FLOAT_SHORTEST_DECIMAL_LEN];
-          float_to_shortest_decimal_buf(WFL::DecodeFloat(field.value.as_uint32), buf);
-          EmitStr(std::move(std::string(buf)));
-        }
+        EmitStr(std::move(postgres_utils::float_to_string(
+            WFL::DecodeFloat(field.value.as_uint32))));
         break;
       case T::TYPE_INT64:
       case T::TYPE_SFIXED64:

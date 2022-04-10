@@ -46,6 +46,9 @@ void pdelete(T* p) {
   pfree(p);
 }
 
+std::string float_to_string(float x);
+std::string double_to_string(double x);
+
 // TODO: pass memory context explicitly?
 template <typename T>
 class PostgresAllocator : public std::allocator<T> {
