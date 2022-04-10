@@ -5,6 +5,8 @@
 /dist
 /test_protos/*_descriptor_set.pb
 /third_party
+/sql/postgres_protobuf.sql
+/expected/postgres_protobuf.out
 
 # Test results
 /regression.out
