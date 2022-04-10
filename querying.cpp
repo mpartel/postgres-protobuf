@@ -458,7 +458,7 @@ class PrimitiveEmitter : public Emitter {
 
   void ReadPrimitive(const FieldInfo& field) override {
 #ifndef PROTOBUF_LITTLE_ENDIAN
-    static_assert(false, "big-endian not yet supported");
+#error "big-endian not yet supported"
 #endif
     PGPROTO_DEBUG("Emit primitive %d (wt %d, ty %d)", field.number,
                   field.wire_type, ty_);
@@ -697,7 +697,8 @@ class FieldSelector : public ProtobufVisitor {
 
   bool ShouldEmitCurrentIndex() const {
     return current_field_ == wanted_field_ &&
-           (!wanted_index_.has_value() || current_index_ == wanted_index_.value());
+           (!wanted_index_.has_value() ||
+            current_index_ == wanted_index_.value());
   }
 };
 
@@ -1298,7 +1299,7 @@ void QueryImpl::ParseNumericMapKey(const std::string& s,
                                    pb::FieldDescriptor::Type ty,
                                    FieldInfo::Value* v) {
 #ifndef PROTOBUF_LITTLE_ENDIAN
-  static_assert(false, "big-endian not yet supported");
+#error "big-endian not yet supported"
 #endif
   using T = pb::FieldDescriptor::Type;
   using WFL = pb::internal::WireFormatLite;
