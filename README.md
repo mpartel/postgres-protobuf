@@ -65,7 +65,7 @@ CREATE EXTENSION postgres_protobuf;
 
 Prebuilt binaries are [here](https://github.com/mpartel/postgres-protobuf/releases).
 
-Currently they are built with and tested on Ubuntu 18.04 only.
+Currently they are built with and tested on Ubuntu 20.04 only.
 You can build your own binary package from source with `make dist`.
 
 On Ubuntu, install the contents of the binary package like this:
