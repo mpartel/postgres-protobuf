@@ -23,6 +23,8 @@ jobs:
         run: env USE_DOCKER=1 POSTGRES_VERSION=13 ./build-and-test.sh
       - name: Test on PG14
         run: env USE_DOCKER=1 POSTGRES_VERSION=14 ./build-and-test.sh
+      - name: Test on PG15
+        run: env USE_DOCKER=1 POSTGRES_VERSION=15 ./build-and-test.sh
       - name: Build for PG11
         run: env POSTGRES_VERSION=11 ./docker-build-dist.sh
       - name: Build for PG12
@@ -31,6 +33,8 @@ jobs:
         run: env POSTGRES_VERSION=13 ./docker-build-dist.sh
       - name: Build for PG14
         run: env POSTGRES_VERSION=14 ./docker-build-dist.sh
+      - name: Build for PG15
+        run: env POSTGRES_VERSION=15 ./docker-build-dist.sh
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -76,4 +80,13 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg14.tar.gz
           asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg14.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload PG15 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg15.tar.gz
+          asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg15.tar.gz
           asset_content_type: application/gzip

@@ -4,6 +4,7 @@
 ![Tests on PG12](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG12/badge.svg)
 ![Tests on PG13](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG13/badge.svg)
 ![Tests on PG14](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG14/badge.svg)
+![Tests on PG15](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG15/badge.svg)
 
 Features:
 
