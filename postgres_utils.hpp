@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <new>
 #include <string>
