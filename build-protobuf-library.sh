@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euxo pipefail
 
-PROTOBUF_VERSION=3.11.2
-
 cd "$(dirname "${0}")"
 
-rm -Rf third_party/protobuf-* third_party/protobuf
-mkdir -p third_party/
-cd third_party
-curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz" | tar xzf -
-mv protobuf-"${PROTOBUF_VERSION}" protobuf
-cd protobuf
-./configure --with-pic --enable-static
-make -j16
+cd third_party/protobuf
+rm -Rf _build
+cmake -B _build -S . -G Ninja \
+    -DCMAKE_CXX_FLAGS=-fPIC \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Dprotobuf_BUILD_TESTS=OFF \
+    -DCMAKE_INSTALL_PREFIX=_install
+cmake --build _build
+cd _build
+ninja install

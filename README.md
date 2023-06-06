@@ -47,11 +47,13 @@ Requires Postgres 11 or newer.
 Prerequisites for installing from source:
 
 - Postgres server headers (if you use the Postgres APT repo, install `postgresql-server-dev-$VERSION`)
-- A (mostly) C++17-capable compiler (Ubuntu 18.04's default GCC 7.4.0 works)
+- A (mostly) C++17-capable compiler (Ubuntu 22.04's default GCC works)
+- CMake and Ninja (for building protobufs), and Make
 
 To install:
 
 ```bash
+git submodule update --init --recursive
 make
 sudo make install
 ```

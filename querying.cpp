@@ -17,6 +17,7 @@
 
 // Protobuf headers must be included before any Postgres headers because
 // the latter pollute names like 'FATAL' used by macros in the former.
+#include <absl/base/config.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/io/coded_stream.h>
@@ -457,7 +458,7 @@ class PrimitiveEmitter : public Emitter {
   }
 
   void ReadPrimitive(const FieldInfo& field) override {
-#ifndef PROTOBUF_LITTLE_ENDIAN
+#ifndef ABSL_IS_LITTLE_ENDIAN
 #error "big-endian not yet supported"
 #endif
     PGPROTO_DEBUG("Emit primitive %d (wt %d, ty %d)", field.number,
@@ -1292,7 +1293,7 @@ T ParseNum(const std::string& s) {
 void QueryImpl::ParseNumericMapKey(const std::string& s,
                                    pb::FieldDescriptor::Type ty,
                                    FieldInfo::Value* v) {
-#ifndef PROTOBUF_LITTLE_ENDIAN
+#ifndef ABSL_IS_LITTLE_ENDIAN
 #error "big-endian not yet supported"
 #endif
   using T = pb::FieldDescriptor::Type;

@@ -3,6 +3,7 @@
 #include "postgres_utils.hpp"
 #include "querying.hpp"
 
+#include <absl/status/status.h>
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/util/json_util.h>
 
@@ -289,10 +290,10 @@ Datum protobuf_to_json_text(PG_FUNCTION_ARGS) {
     GetProtobufInfoOrThrow(protobuf_type_str, &type_url, &type_resolver);
 
     std::string json_str;
-    pb::util::Status status = pb::util::BinaryToJsonString(
+    absl::Status status = pb::util::BinaryToJsonString(
         type_resolver, type_url, proto_str, &json_str);
     if (!status.ok()) {
-      throw BadProto(status.error_message());
+      throw BadProto(status.message());
     }
 
     size_t result_size = VARHDRSZ + json_str.size();
@@ -328,10 +329,10 @@ Datum protobuf_from_json_text(PG_FUNCTION_ARGS) {
     GetProtobufInfoOrThrow(protobuf_type_str, &type_url, &type_resolver);
 
     std::string proto_str;
-    pb::util::Status status = pb::util::JsonToBinaryString(
+    absl::Status status = pb::util::JsonToBinaryString(
         type_resolver, type_url, json_str, &proto_str);
     if (!status.ok()) {
-      throw BadProto(status.error_message());
+      throw BadProto(status.message());
     }
 
     size_t result_size = VARHDRSZ + proto_str.size();

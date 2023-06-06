@@ -4,9 +4,12 @@
 *.bc
 /dist
 /test_protos/*_descriptor_set.pb
-/third_party
 /sql/postgres_protobuf.sql
 /expected/postgres_protobuf.out
+
+# For Docker (.dockerignore is linked to .gitignore)
+/third_party/protobuf/_build
+/third_party/protobuf/_install
 
 # Test results
 /regression.out

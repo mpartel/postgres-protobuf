@@ -1,18 +1,21 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN apt-get update \
- && apt-get install -y curl gnupg2 zlib1g-dev \
- && echo "deb http://apt.postgresql.org/pub/repos/apt/ focal-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
- && curl -sL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
- && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-        build-essential \
-        ruby \
-        sudo \
- && apt-get clean \
- && rm -Rf /var/lib/apt/lists/*
+       curl \
+       gnupg2 \
+       zlib1g-dev \
+       build-essential \
+       ruby \
+       sudo \
+       cmake \
+       ninja-build \
+       pkg-config \
+ && echo "deb https://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+ && curl -sL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 
 # Compiling the protobuf library is quite slow, so do this before installing the correct Postgres version
+COPY third_party/protobuf/ /app/third_party/protobuf
 COPY build-protobuf-library.sh /app/
 RUN /app/build-protobuf-library.sh
 

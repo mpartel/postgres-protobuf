@@ -9,7 +9,7 @@ EXT_VERSION_PATCHLEVEL = 1
 EXT_VERSION = $(EXT_VERSION_MAJOR).$(EXT_VERSION_MINOR).$(EXT_VERSION_PATCHLEVEL)
 
 PROTOBUF_ROOT=third_party/protobuf
-PROTOC=$(PROTOBUF_ROOT)/src/protoc
+PROTOC=$(PROTOBUF_ROOT)/_build/protoc
 
 MODULE_big = postgres_protobuf
 EXTENSION = postgres_protobuf
@@ -20,9 +20,9 @@ OBJS=$(patsubst %.cpp, %.o, $(wildcard *.cpp))
 BC_FILES=$(patsubst %.o, %.bc, $(OBJS))
 DESC_SET_FILES=$(patsubst %.proto, %.pb, $(wildcard test_protos/*.proto))
 
-PG_CPPFLAGS=-I$(PROTOBUF_ROOT)/src -Wno-deprecated -std=c++17 -Wno-register -DEXT_VERSION_MAJOR=$(EXT_VERSION_MAJOR) -DEXT_VERSION_MINOR=$(EXT_VERSION_MINOR) -DEXT_VERSION_PATCHLEVEL=$(EXT_VERSION_PATCHLEVEL)
+PG_CPPFLAGS=$(shell env PKG_CONFIG_PATH=$(PROTOBUF_ROOT)/_install/lib/pkgconfig pkg-config --cflags protobuf) -Wno-deprecated -std=c++17 -Wno-register -DEXT_VERSION_MAJOR=$(EXT_VERSION_MAJOR) -DEXT_VERSION_MINOR=$(EXT_VERSION_MINOR) -DEXT_VERSION_PATCHLEVEL=$(EXT_VERSION_PATCHLEVEL)
 PG_CXXFLAGS=-fPIC
-PG_LDFLAGS=-Wl,--whole-archive $(PROTOBUF_ROOT)/src/.libs/libprotobuf.a -Wl,--no-whole-archive -lz -lstdc++
+PG_LDFLAGS=-Wl,--whole-archive $(shell env PKG_CONFIG_PATH=$(PROTOBUF_ROOT)/_install/lib/pkgconfig pkg-config --libs protobuf) -Wl,--no-whole-archive -lz -lstdc++
 
 ifdef DEBUG_PRINT
 PG_CPPFLAGS+=-DDEBUG_PRINT

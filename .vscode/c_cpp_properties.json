@@ -4,9 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/third_party/protobuf/src",
+                "${workspaceFolder}/third_party/protobuf/_install/include",
                 "/usr/include/postgresql",
-                "/usr/include/postgresql/14/server"
+                "/usr/include/postgresql/15/server"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

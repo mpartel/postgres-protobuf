@@ -5,6 +5,8 @@
 #include <string>
 #include <utility>
 
+#include <absl/status/status.h>
+
 // ===========================================================================
 // ==================== Debug macro (requires postgres.h) ====================
 // ===========================================================================
@@ -28,7 +30,7 @@ namespace postgres_protobuf {
 
 class BadProto {
  public:
-  BadProto(std::string&& msg) : msg(std::move(msg)) {}
+  BadProto(absl::string_view&& msg) : msg(msg) {}
   const std::string msg;
 };
 
