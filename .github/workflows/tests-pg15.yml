@@ -1,14 +1,14 @@
 name: Tests on PG15
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
 
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build and run tests in Docker
       run: env USE_DOCKER=1 POSTGRES_VERSION=15 ./build-and-test.sh

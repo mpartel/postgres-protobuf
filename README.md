@@ -1,10 +1,9 @@
 # Protocol Buffer extension for PostgreSQL
-
-![Tests on PG11](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG11/badge.svg)
-![Tests on PG12](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG12/badge.svg)
-![Tests on PG13](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG13/badge.svg)
-![Tests on PG14](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG14/badge.svg)
-![Tests on PG15](https://github.com/mpartel/postgres-protobuf/workflows/Tests%20on%20PG15/badge.svg)
+[![Tests on PG11](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg11.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg11.yml)
+[![Tests on PG12](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg12.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg12.yml)
+[![Tests on PG13](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg13.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg13.yml)
+[![Tests on PG14](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg14.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg14.yml)
+[![Tests on PG15](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg15.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg15.yml)
 
 Features:
 
