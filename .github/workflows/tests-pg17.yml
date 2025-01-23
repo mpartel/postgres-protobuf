@@ -1,0 +1,14 @@
+name: Tests on PG17
+
+on: [push, workflow_dispatch]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build and run tests in Docker
+      run: env USE_DOCKER=1 POSTGRES_VERSION=17 ./build-and-test.sh

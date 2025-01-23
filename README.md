@@ -4,6 +4,8 @@
 [![Tests on PG13](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg13.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg13.yml)
 [![Tests on PG14](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg14.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg14.yml)
 [![Tests on PG15](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg15.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg15.yml)
+[![Tests on PG16](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg16.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg16.yml)
+[![Tests on PG17](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg17.yml/badge.svg?branch=master)](https://github.com/mpartel/postgres-protobuf/actions/workflows/tests-pg17.yml)
 
 Features:
 
