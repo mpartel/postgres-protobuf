@@ -8,13 +8,13 @@ on:
 jobs:
   build:
     name: Build and release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Get the version
         id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
       - name: Test on PG11
         run: env USE_DOCKER=1 POSTGRES_VERSION=11 ./build-and-test.sh
       - name: Test on PG12
