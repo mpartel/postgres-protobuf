@@ -20,3 +20,4 @@
 # VSCode spammy settings (we commit other VSCode configs)
 /.vscode/settings.json
 
+README.postgres_protobuf.md
