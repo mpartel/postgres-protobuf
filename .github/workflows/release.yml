@@ -29,6 +29,8 @@ jobs:
         run: env USE_DOCKER=1 POSTGRES_VERSION=16 ./build-and-test.sh
       - name: Test on PG17
         run: env USE_DOCKER=1 POSTGRES_VERSION=17 ./build-and-test.sh
+      - name: Test on PG18
+        run: env USE_DOCKER=1 POSTGRES_VERSION=18 ./build-and-test.sh
       - name: Build for PG11
         run: env POSTGRES_VERSION=11 ./docker-build-dist.sh
       - name: Build for PG12
@@ -43,6 +45,8 @@ jobs:
         run: env POSTGRES_VERSION=16 ./docker-build-dist.sh
       - name: Build for PG17
         run: env POSTGRES_VERSION=17 ./docker-build-dist.sh
+      - name: Build for PG18
+        run: env POSTGRES_VERSION=18 ./docker-build-dist.sh
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -115,4 +119,13 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg17.tar.gz
           asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg17.tar.gz
+          asset_content_type: application/gzip
+      - name: Upload PG18 tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg18.tar.gz
+          asset_name: postgres-protobuf-${{ steps.get_version.outputs.VERSION }}-linux-x86_64-for-pg18.tar.gz
           asset_content_type: application/gzip
