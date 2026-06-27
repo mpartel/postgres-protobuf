@@ -14,7 +14,7 @@ PROTOC=$(PROTOBUF_ROOT)/src/protoc
 MODULE_big = postgres_protobuf
 EXTENSION = postgres_protobuf
 DATA = postgres_protobuf--0.1.sql postgres_protobuf--0.1--0.2.sql
-DOCS = README.md
+DOCS = README.postgres_protobuf.md
 REGRESS = postgres_protobuf
 OBJS=$(patsubst %.cpp, %.o, $(wildcard *.cpp))
 BC_FILES=$(patsubst %.o, %.bc, $(OBJS))
@@ -38,7 +38,7 @@ PGXS := $(shell $(PG_CONFIG) --pgxs)
 include $(PGXS)
 
 # Add targets to `all` and `clean`
-all: sql/postgres_protobuf.sql expected/postgres_protobuf.out $(DESC_SET_FILES)
+all: sql/postgres_protobuf.sql expected/postgres_protobuf.out $(DESC_SET_FILES) README.postgres_protobuf.md
 clean: postgres_protobuf_clean
 
 protoc: $(PROTOC)
@@ -68,6 +68,12 @@ expected/postgres_protobuf.out: generate_test_cases.rb $(DESC_SET_FILES) Makefil
 postgres_protobuf_clean:
 	rm -Rf dist
 	rm -f $(DESC_SET_FILES)
+	rm -f README.postgres_protobuf.md
+
+# PGXS installs DOCS to a flat shared directory without namespacing.
+# Use an extension-specific filename to avoid collisions with other extensions.
+README.postgres_protobuf.md: README.md
+	cp $< $@
 
 # Work around weird error mentioned here: https://github.com/rdkit/rdkit/issues/2192
 COMPILE.cxx.bc = $(CLANG) -xc++ -Wno-ignored-attributes $(BITCODE_CPPFLAGS) $(CPPFLAGS) -emit-llvm -c
