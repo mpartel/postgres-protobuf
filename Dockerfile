@@ -1,8 +1,8 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 RUN apt-get update \
  && apt-get install -y curl gnupg2 zlib1g-dev \
- && echo "deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+ && echo "deb http://apt.postgresql.org/pub/repos/apt/ noble-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
  && curl -sL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
  && apt-get update \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -12,7 +12,7 @@ RUN apt-get update \
  && apt-get clean \
  && rm -Rf /var/lib/apt/lists/*
 
-# Compiling the protobuf library is quite slow, so do this before installing the correct Postgres version
+# Compiling the protobuf library is quite slow, so do that early so it gets cached for all Postgres versions.
 COPY build-protobuf-library.sh /app/
 RUN /app/build-protobuf-library.sh
 
