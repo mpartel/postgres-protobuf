@@ -8,7 +8,7 @@ cd "$(dirname "${0}")"
 rm -Rf third_party/protobuf-* third_party/protobuf
 mkdir -p third_party/
 cd third_party
-curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz" | tar xzf -
+curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz" | tar --no-same-owner -xzf -
 mv protobuf-"${PROTOBUF_VERSION}" protobuf
 cd protobuf
 ./configure --with-pic --enable-static
